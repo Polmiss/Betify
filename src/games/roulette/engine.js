@@ -49,7 +49,7 @@ export function settleRound(player, bets, pocket) {
   const result = calculateResult(bets, pocket);
   if (!result.stake) throw new Error('Najpierw postaw żetony na planszy.');
   const balance = player.getState().balance;
-  if (result.stake > balance) throw new Error('Za mało żetonów. Zmniejsz zakłady lub uzupełnij portfel w lobby.');
+  if (result.stake > balance) throw new Error('Za mało żetonów. Zmniejsz zakłady lub zresetuj saldo.');
   // Check the maximum possible return before accepting a round, regardless of its outcome.
   const largestReturn = Math.max(...WHEEL.map((n) => calculateResult(bets, n).payout));
   if (balance - result.stake + largestReturn > MAX_BALANCE) throw new Error('Możliwa wygrana przekracza limit portfela. Zmniejsz stawkę.');

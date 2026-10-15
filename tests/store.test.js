@@ -35,7 +35,7 @@ test('balance and favorites survive recreation; reset preserves favorites', () =
 });
 
 test('corrupt saved data cannot introduce invalid balances or game IDs', () => {
-  const player = createPlayerStore(memoryStorage(JSON.stringify({ balance: -500, favorites: ['blackjack', 'unknown', 'blackjack', 42] })));
+  const player = createPlayerStore(memoryStorage(JSON.stringify({ balance: -500, favorites: ['blackjack', 'unknown', 'blackjack', 'poker', 'slots', 'baccarat', 'crash', 42] })));
   assert.equal(player.getState().balance, INITIAL_BALANCE);
   assert.deepEqual(player.getState().favorites, ['blackjack']);
   assert.equal(createPlayerStore(memoryStorage('{invalid')).getState().balance, INITIAL_BALANCE);
@@ -85,8 +85,8 @@ test('separate game sessions refresh shared balances before spending or creditin
 });
 
 test('search composes with category and favorite filters, including Polish characters', () => {
-  assert.deepEqual(filterGames({ category: 'cards', query: 'poker' }).map((game) => game.id), ['poker']);
-  assert.equal(filterGames({ category: 'instant', query: 'poker' }).length, 0);
+  assert.deepEqual(filterGames({ category: 'cards', query: 'high low' }).map((game) => game.id), ['high-low']);
+  assert.equal(filterGames({ category: 'instant', query: 'high low' }).length, 0);
   assert.deepEqual(filterGames({ category: 'favorites', favorites: ['mines'], query: 'min' }).map((game) => game.id), ['mines']);
   assert.equal(filterGames({ query: 'stolowe' }).length, 1);
   assert.equal(filterGames({ query: '  BLACKJACK ' }).length, 1);

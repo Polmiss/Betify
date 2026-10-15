@@ -14,7 +14,7 @@ const player = browserPlayer();
 const format = new Intl.NumberFormat('pl-PL');
 let cleanup;
 let closeHelp;
-document.querySelector('#app').innerHTML = `<header class="game-topbar"><a class="game-back" href="./">${icon('arrow')}<span>Lobby</span></a><a class="game-wordmark" href="./">betify<span>.</span></a><span class="game-mode">WIRTUALNA ROZGRYWKA</span><div class="game-page-wallet">${icon('coin')}<strong class="balance-value"></strong><button class="game-refill" aria-label="Dodaj 5 000 darmowych żetonów">+ 5k</button></div></header><main class="game-surface" id="game-content"></main><p class="game-page-notice" role="status" hidden></p>`;
+document.querySelector('#app').innerHTML = `<header class="game-topbar"><a class="game-back" href="./">${icon('arrow')}<span>Lobby</span></a><a class="game-wordmark" href="./">betify<span>.</span></a><span class="game-mode">WIRTUALNA ROZGRYWKA</span><div class="game-page-wallet">${icon('coin')}<strong class="balance-value"></strong><button class="game-reset" aria-label="Resetuj saldo do 10 000 żetonów">Resetuj saldo</button></div></header><main class="game-surface" id="game-content"></main><p class="game-page-notice" role="status" hidden></p>`;
 const surface = document.querySelector('#game-content');
 surface.addEventListener('click', (event) => {
   const button = event.target.closest('.rt-rules-toggle, .bj-rules summary');
@@ -39,7 +39,13 @@ function updateWallet() {
   notice.textContent = 'Zapisywanie jest niedostępne. Saldo zostaje tylko do odświeżenia tej karty.';
 }
 player.subscribe(updateWallet);
-document.querySelector('.game-refill').addEventListener('click', () => { player.credit(5000); });
+document.querySelector('.game-reset').addEventListener('click', () => {
+  // Finish pending animations and settlement before setting the initial balance.
+  closeHelp?.();
+  cleanup?.(); cleanup = undefined;
+  player.resetBalance();
+  render();
+});
 
 function render() {
   closeHelp?.();

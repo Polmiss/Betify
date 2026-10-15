@@ -95,7 +95,7 @@ export function createBlackjack(player, { shoeFactory = createShoe } = {}) {
     start(bet, { deferOpening = false } = {}) {
       if (!['ready', 'finished'].includes(state.phase)) return 'Najpierw dokończ obecną rundę.';
       if (!Number.isSafeInteger(bet) || bet < MIN_BET || bet > MAX_BET || bet % 2 !== 0) return 'Wybierz parzystą stawkę od 10 do 5 000 żetonów.';
-      if (player.getState().balance < bet) return 'Za mało żetonów. Uzupełnij je za darmo w portfelu.';
+      if (player.getState().balance < bet) return 'Za mało żetonów. Zresetuj saldo w portfelu.';
       if (player.getState().balance + bet * 1.5 > MAX_BALANCE) return 'Saldo jest zbyt blisko limitu portfela. Wybierz mniejszą stawkę.';
       if (shoe.length < 60) shoe = shoeFactory();
       if (!Array.isArray(shoe) || shoe.length < 4) throw new Error('Brak kart w talii.');

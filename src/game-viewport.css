@@ -164,7 +164,7 @@ body.game-page{--game-bar:clamp(38px,6.5dvh,58px);height:100dvh;min-height:0;ove
   .game-page .game-wordmark{font-size:22px}
   .game-page .game-page-wallet{gap:8px}
   .game-page .game-page-wallet strong{font-size:13px}
-  .game-page .game-refill{padding:6px 8px;font-size:9px}
+  .game-page .game-reset{padding:6px 8px;font-size:9px}
   .game-page .rt-root{gap:5px}
   .game-page .rt-header{height:28px}
   .game-page .rt-header h2{font-size:21px}

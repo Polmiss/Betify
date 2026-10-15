@@ -20,9 +20,9 @@ npm run preview
 ## Co jest gotowe
 
 - Responsywne lobby w języku polskim, z własnymi grafikami SVG.
-- Katalog ośmiu planowanych gier, wyszukiwarka, kategorie, sortowanie i losowanie gry.
+- Katalog: Dice, High Low, Mines, Roulette, Blackjack, Trader, Goal oraz Plinko jako honorable mention; wyszukiwarka, kategorie, sortowanie i losowanie gry.
 - Ulubione oraz saldo 10 000 żetonów zapisane w `localStorage`.
-- Darmowe uzupełnianie i reset salda, z obsługą niedostępnego zapisu w przeglądarce.
+- Wyłącznie reset salda do 10 000 żetonów; brak przycisków dodawania żetonów. Obsługa niedostępnego zapisu w przeglądarce.
 - Opisy i skrócone zasady gier, dostępne także przez `#game/blackjack` itp.
 - Blackjack: dobieranie, pasowanie, podwojenie, historia pięciu rund i wspólny portfel lobby.
 - Animowane rozdawanie kart z talii, obrót zakrytej karty krupiera i jego tura krok po kroku. Ruchy są blokowane podczas animacji; ustawienie systemowe ograniczenia ruchu wyłącza efekty i opóźnienia.
@@ -36,7 +36,7 @@ Kliknij Blackjack w lobby lub otwórz `#game/blackjack`. Wybierz parzystą stawk
 
 Gra korzysta z sześciu talii tasowanych przez Web Crypto (ponowne tasowanie przed rundą, gdy zostaje mniej niż 60 kart). Krupier stoi na każdym 17, również miękkim. Można podwoić pierwsze dwie karty przy wystarczającym saldzie: dodatkowa stawka, dokładnie jedna karta i automatyczny pas. Bez podziału par, ubezpieczenia i poddania.
 
-Przejście do innej gry lub opuszczenie strony wywołuje sprzątanie i rozliczenie otwartej rundy. Aktywne rozdanie nie jest zapisywane, więc awaryjne zamknięcie przeglądarki może spowodować utratę stawki. Historia dotyczy aktualnego otwarcia stołu. Saldo jest zapisywane po każdej operacji. Darmowe uzupełnienie jest dostępne także w nagłówku strony gry.
+Przejście do innej gry lub opuszczenie strony wywołuje sprzątanie i rozliczenie otwartej rundy. Aktywne rozdanie nie jest zapisywane, więc awaryjne zamknięcie przeglądarki może spowodować utratę stawki. Historia dotyczy aktualnego otwarcia stołu. Saldo jest zapisywane po każdej operacji. Reset salda do 10 000 jest dostępny także w nagłówku strony gry. Reset kończy aktywną rundę i otwiera świeży stół przed rozpoczęciem kolejnej gry.
 
 ## Ruletka i strony gier
 
