@@ -25,6 +25,7 @@ npm run preview
 - Darmowe uzupełnianie i reset salda, z obsługą niedostępnego zapisu w przeglądarce.
 - Opisy i skrócone zasady gier, dostępne także przez `#game/blackjack` itp.
 - Blackjack: dobieranie, pasowanie, podwojenie, historia pięciu rund i wspólny portfel lobby.
+- Animowane rozdawanie kart z talii, obrót zakrytej karty krupiera i jego tura krok po kroku. Ruchy są blokowane podczas animacji; ustawienie systemowe ograniczenia ruchu wyłącza efekty i opóźnienia.
 - Klawiaturowa nawigacja, natywne okna dialogowe i ograniczone animacje dla `prefers-reduced-motion`.
 
 Blackjack jest oznaczony jako **Zagraj teraz**, a pozostałe gry jako **Wkrótce**. Nie ma płatności, kont użytkowników ani backendu. Saldo jest lokalne i może być edytowane przez użytkownika — to celowe dla demonstracyjnego projektu. Czcionki pobierane są z Google Fonts; przy braku dostępu używany jest font systemowy. Grafiki są lokalne.

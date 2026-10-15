@@ -183,3 +183,70 @@ test('hundreds of complete rounds preserve integer balances and settle only once
     assert.equal(player.getState().balance, before - state.bet + state.payout);
   }
 });
+
+test('animated opening blocks moves and waits before settling natural blackjack', () => {
+  const { game, player } = table(['A', 9, 'K', 7]);
+  game.start(100, { deferOpening: true });
+  assert.equal(game.getState().phase, 'dealing');
+  assert.equal(game.getState().hidden, true);
+  assert.equal(player.getState().balance, 9900);
+  assert.equal(game.hit(), false);
+  assert.equal(game.double(), false);
+  assert.equal(game.beginStand(), false);
+  assert.equal(typeof game.start(100), 'string');
+  game.resolveOpening();
+  assert.equal(game.getState().outcome, 'blackjack');
+  assert.equal(player.getState().balance, 10150);
+  assert.equal(game.resolveOpening(), false);
+});
+
+test('dealer steps reveal, draw one card at a time, and pay only at settlement', () => {
+  const { game, player } = table([10, 2, 8, 3, 4, 10]);
+  game.start(100);
+  game.beginStand();
+  assert.equal(game.getState().hidden, false);
+  assert.equal(game.getState().dealer.length, 2);
+  assert.equal(game.hit(), false);
+  assert.equal(game.double(), false);
+  assert.equal(typeof game.start(100), 'string');
+  game.dealerStep();
+  assert.equal(game.getState().dealer.length, 3);
+  assert.equal(game.getState().phase, 'dealer');
+  game.dealerStep();
+  assert.equal(game.getState().dealer.length, 4);
+  assert.equal(player.getState().balance, 9900);
+  game.dealerStep();
+  assert.equal(game.getState().outcome, 'lose');
+  assert.equal(game.dealerStep(), false);
+  assert.equal(player.getState().balance, 9900);
+});
+
+test('double and hitting 21 can defer the dealer turn', () => {
+  const doubled = table([5, 10, 6, 7, 'K']);
+  doubled.game.start(100);
+  doubled.game.double({ deferDealer: true });
+  assert.equal(doubled.game.getState().phase, 'dealer');
+  assert.equal(doubled.player.getState().balance, 9800);
+  doubled.game.dealerStep();
+  assert.equal(doubled.player.getState().balance, 10200);
+  const hit = table([5, 10, 6, 7, 'K']);
+  hit.game.start(100);
+  hit.game.hit({ deferDealer: true });
+  assert.equal(hit.game.getState().phase, 'dealer');
+  assert.equal(hit.player.getState().balance, 9900);
+  hit.game.stand();
+  assert.equal(hit.player.getState().balance, 10100);
+});
+
+test('closing during opening or dealer animation settles exactly once', () => {
+  for (const phase of ['dealing', 'dealer']) {
+    const { game, player } = table([10, 6, 8, 9, 10]);
+    game.start(100, { deferOpening: true });
+    if (phase === 'dealer') { game.resolveOpening(); game.beginStand(); }
+    game.stand();
+    assert.equal(game.getState().outcome, 'win');
+    assert.equal(player.getState().balance, 10100);
+    game.stand(); game.dealerStep(); game.resolveOpening();
+    assert.equal(player.getState().balance, 10100);
+  }
+});

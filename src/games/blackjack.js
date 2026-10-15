@@ -11,11 +11,26 @@ export function mountBlackjack(root, player) {
   let rounds = 0;
   let countedRound = false;
   const history = [];
+  let busy = false;
+  let disposed = false;
+  let preview = null;
+  const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
+  const pending = new Map();
+  const animations = new Set();
+
+  function pause(ms) {
+    if (disposed) return Promise.resolve(false);
+    return new Promise((resolve) => {
+      const timer = setTimeout(() => { pending.delete(timer); resolve(!disposed); }, reducedMotion.matches ? 0 : ms);
+      pending.set(timer, resolve);
+    });
+  }
 
   root.innerHTML = `
     <section class="blackjack" aria-label="Stół do blackjacka">
       <header class="bj-header"><div><span class="eyebrow">BETIFY ORIGINALS · GRY KARCIANE</span><h2 id="dialog-title">Blackjack<span class="mint">.</span></h2><p>Twój ruch. Twoje dwadzieścia jeden.</p></div><span class="bj-table-number">STÓŁ<br><strong>01</strong></span></header>
       <div class="bj-table">
+        <div class="bj-shoe" aria-hidden="true"><span>b♠</span><small>6 TALII</small></div>
         <div class="bj-seat"><div class="bj-hand-heading"><h3>Krupier</h3><span id="bj-dealer-score" class="bj-score"></span></div><div id="bj-dealer" class="bj-hand" aria-label="Karty krupiera"></div></div>
         <div class="bj-table-brand" aria-hidden="true"><span>♠</span><strong>BLACKJACK PAYS 3:2</strong><small>KRUPIER STOI NA 17 · 6 TALII</small></div>
         <div class="bj-seat"><div class="bj-hand-heading"><h3>Twoje karty</h3><span id="bj-player-score" class="bj-score"></span></div><div id="bj-player" class="bj-hand" aria-label="Twoje karty"></div></div>
@@ -33,54 +48,145 @@ export function mountBlackjack(root, player) {
     </section>`;
 
   const $ = (selector) => root.querySelector(selector);
-  function cards(hand, hidden = false) {
-    if (!hand.length) return '<span class="bj-card-placeholder" aria-label="Miejsce na karty">♠</span>';
-    return hand.map((card) => `<span class="bj-card ${['♥', '♦'].includes(card.suit) ? 'bj-card-red' : ''}" aria-label="${card.rank} ${{ '♠': 'pik', '♥': 'kier', '♦': 'karo', '♣': 'trefl' }[card.suit]}"><span>${card.rank}<small>${card.suit}</small></span><b aria-hidden="true">${card.suit}</b><span aria-hidden="true">${card.rank}<small>${card.suit}</small></span></span>`).join('') + (hidden ? '<span class="bj-card bj-card-back" aria-label="Zakryta karta krupiera"><span aria-hidden="true">b♠</span></span>' : '');
+  function face(card) {
+    return card ? `<span>${card.rank}<small>${card.suit}</small></span><b>${card.suit}</b><span>${card.rank}<small>${card.suit}</small></span>` : '';
+  }
+  function syncHand(selector, hand, hidden = false) {
+    const target = $(selector);
+    const desired = [...hand, ...(hidden ? [null] : [])];
+    target.querySelector('.bj-card-placeholder')?.remove();
+    desired.forEach((card, index) => {
+      let slot = target.children[index];
+      const fresh = !slot;
+      if (fresh) {
+        slot = document.createElement('span');
+        slot.className = 'bj-card-slot';
+        slot.innerHTML = '<span class="bj-card-rotator" aria-hidden="true"><span class="bj-card bj-card-front"></span><span class="bj-card bj-card-back"><span>b♠</span></span></span>';
+        target.append(slot);
+      }
+      const wasHidden = slot.classList.contains('is-face-down');
+      const identity = card ? card.rank + card.suit : 'hidden';
+      if (slot.dataset.card !== identity) {
+        slot.dataset.card = identity;
+        const front = slot.querySelector('.bj-card-front');
+        front.innerHTML = face(card);
+        front.classList.toggle('bj-card-red', !!card && ['♥', '♦'].includes(card.suit));
+      }
+      slot.setAttribute('aria-label', card ? `${card.rank} ${{ '♠': 'pik', '♥': 'kier', '♦': 'karo', '♣': 'trefl' }[card.suit]}` : 'Zakryta karta krupiera');
+      slot.classList.toggle('is-face-down', !card);
+      if (fresh && !reducedMotion.matches) {
+        const source = $('.bj-shoe').getBoundingClientRect();
+        const destination = slot.getBoundingClientRect();
+        const motion = slot.animate([
+          { opacity: 0, transform: `translate(${source.left - destination.left}px, ${source.top - destination.top}px) rotate(-28deg) scale(.72)` },
+          { opacity: 1, transform: 'translate(0, 0) rotate(2deg) scale(1.02)', offset: .85 },
+          { opacity: 1, transform: 'none' },
+        ], { duration: 460, easing: 'cubic-bezier(.18,.75,.25,1)' });
+        animations.add(motion);
+        motion.finished.catch(() => {}).finally(() => animations.delete(motion));
+      }
+      if (!fresh && wasHidden && card) slot.classList.add('bj-revealed');
+    });
+    if (!desired.length) target.innerHTML = '<span class="bj-card-placeholder" aria-label="Miejsce na karty">♠</span>';
   }
   function render() {
-    const state = game.getState();
+    const state = preview || game.getState();
     const playing = state.phase === 'playing';
     const finished = state.phase === 'finished';
+    const active = busy || playing || ['dealing', 'dealer'].includes(state.phase);
     if (finished && !countedRound) {
       countedRound = true; rounds++;
       history.unshift(state.payout - state.bet); history.splice(5);
     }
-    $('#bj-dealer').innerHTML = cards(state.dealer, state.hidden);
-    $('#bj-player').innerHTML = cards(state.player);
+    syncHand('#bj-dealer', state.dealer, state.hidden);
+    syncHand('#bj-player', state.player);
     const score = (hand) => { const { total, soft } = handValue(hand); return hand.length ? `${total}${soft && total <= 21 ? ' / miękkie' : ''}` : '—'; };
-    $('#bj-dealer-score').textContent = state.hidden ? `${handValue(state.dealer).total} + ?` : score(state.dealer);
+    $('#bj-dealer-score').textContent = state.hidden && state.dealer.length ? `${handValue(state.dealer).total} + ?` : score(state.dealer);
     $('#bj-player-score').textContent = score(state.player);
-    $('#bj-message').textContent = finished ? outcomes[state.outcome] : playing ? 'Dobierasz czy pasujesz?' : 'Zajmij miejsce przy stole.';
+    $('#bj-message').textContent = state.phase === 'dealing' ? 'Rozdawanie kart…' : state.phase === 'dealer' ? 'Ruch krupiera…' : busy && !finished ? 'Karta w drodze…' : finished ? outcomes[state.outcome] : playing ? 'Dobierasz czy pasujesz?' : 'Zajmij miejsce przy stole.';
     const net = state.payout - state.bet;
-    $('#bj-detail').textContent = finished ? `Bilans rundy: ${net > 0 ? '+' : ''}${number.format(net)} żetonów${state.payout ? ` · Zwrot łącznie: ${number.format(state.payout)}` : ''}` : playing ? 'Zbliż się do 21. Nie przekraczaj granicy.' : 'Wybierz stawkę i rozdaj pierwsze karty.';
+    $('#bj-detail').textContent = finished ? `Bilans rundy: ${net > 0 ? '+' : ''}${number.format(net)} żetonów${state.payout ? ` · Zwrot łącznie: ${number.format(state.payout)}` : ''}` : state.phase === 'dealing' ? 'Karty trafiają kolejno do Ciebie i krupiera.' : state.phase === 'dealer' ? 'Krupier odkrywa kartę i dobiera do co najmniej 17.' : playing ? 'Zbliż się do 21. Nie przekraczaj granicy.' : 'Wybierz stawkę i rozdaj pierwsze karty.';
     $('.bj-result').dataset.result = finished ? state.outcome : '';
-    $('#bj-in-play').textContent = playing ? number.format(state.bet) : '—';
+    $('#bj-in-play').textContent = active ? number.format(state.bet) : '—';
     $('#bj-rounds').textContent = rounds;
-    $('#bj-betting').hidden = playing;
-    $('#bj-deal').hidden = playing;
+    $('#bj-betting').hidden = active;
+    $('#bj-deal').hidden = active;
     $('#bj-deal').textContent = finished ? 'Następne rozdanie ↗' : 'Rozdaj karty ↗';
-    for (const id of ['hit', 'stand', 'double']) $(`#bj-${id}`).hidden = !playing;
-    $('#bj-double').disabled = !state.canDouble;
+    for (const id of ['hit', 'stand', 'double']) {
+      $(`#bj-${id}`).hidden = !active;
+      $(`#bj-${id}`).disabled = busy || !playing || (id === 'double' && !state.canDouble);
+    }
+    $('.bj-table').setAttribute('aria-busy', String(busy));
+    $('.blackjack').classList.toggle('bj-busy', busy);
     $('#bj-error').textContent = error;
     $('#bj-history').innerHTML = history.length ? history.map((net) => `<span class="bj-history-result ${net > 0 ? 'positive' : net < 0 ? 'negative' : ''}">${net > 0 ? '+' : ''}${number.format(net)}</span>`).join('') : 'Jeszcze wszystko przed Tobą.';
   }
-  function onClick(event) {
+  async function playDealer() {
+    if (disposed) return;
+    const state = game.getState();
+    // Reveal the hole card first, then deal each extra card separately.
+    if (state.phase === 'finished') preview = { ...state, phase: 'dealer', outcome: null };
+    render();
+    if (!(await pause(state.phase === 'dealer' ? 700 : 500))) return;
+    preview = null;
+    while (!disposed && game.getState().phase === 'dealer') {
+      game.dealerStep(); render();
+      if (!(await pause(650))) return;
+    }
+    if (!disposed) render();
+  }
+
+  async function onClick(event) {
     const button = event.target.closest('button');
-    if (!button || !root.contains(button)) return;
+    if (!button || !root.contains(button) || disposed || busy) return;
     if (button.dataset.bjBet) {
       selectedBet = Number(button.dataset.bjBet); $('#bj-bet').value = selectedBet;
       root.querySelectorAll('[data-bj-bet]').forEach((chip) => chip.setAttribute('aria-pressed', String(Number(chip.dataset.bjBet) === selectedBet)));
       error = ''; render(); return;
     }
     error = '';
-    if (button.id === 'bj-deal') { selectedBet = Number($('#bj-bet').value); error = game.start(selectedBet) || ''; if (!error) countedRound = false; }
-    else if (button.id === 'bj-hit') game.hit();
-    else if (button.id === 'bj-stand') game.stand();
-    else if (button.id === 'bj-double') game.double();
-    else return;
-    render();
-    if (error) $('#bj-bet').focus();
-    else (game.getState().phase === 'playing' ? $('#bj-hit') : $('#bj-deal')).focus();
+    if (!['bj-deal', 'bj-hit', 'bj-stand', 'bj-double'].includes(button.id)) return;
+    busy = true;
+    try {
+      if (button.id === 'bj-deal') {
+        selectedBet = Number($('#bj-bet').value);
+        error = game.start(selectedBet, { deferOpening: true }) || '';
+        if (!error) {
+          countedRound = false;
+          $('#bj-player').replaceChildren(); $('#bj-dealer').replaceChildren();
+          const dealt = game.getState();
+          // The actual order is player, dealer, player, dealer face down.
+          for (const [playerCount, dealerCount, hidden] of [[1, 0, false], [1, 1, false], [2, 1, false], [2, 1, true]]) {
+            preview = { ...dealt, player: dealt.player.slice(0, playerCount), dealer: dealt.dealer.slice(0, dealerCount), hidden };
+            render();
+            if (!(await pause(510))) return;
+          }
+          preview = null;
+          game.resolveOpening(); render();
+          if (game.getState().phase === 'finished') await playDealer();
+        }
+      } else if (button.id === 'bj-stand') {
+        game.beginStand(); await playDealer();
+      } else {
+        // Hold the old dealer hand until the player's new card has landed.
+        const before = game.getState();
+        if (button.id === 'bj-hit') game.hit({ deferDealer: true });
+        else game.double({ deferDealer: true });
+        const after = game.getState();
+        preview = { ...after, dealer: before.dealer, hidden: true, phase: 'playing', outcome: null };
+        render();
+        if (!(await pause(520))) return;
+        preview = null;
+        if (after.phase !== 'playing') await playDealer();
+      }
+    } finally {
+      busy = false;
+      if (!disposed) {
+        preview = null; render();
+        if (error) $('#bj-bet').focus({ preventScroll: true });
+        else (game.getState().phase === 'playing' ? $('#bj-hit') : $('#bj-deal')).focus({ preventScroll: true });
+      }
+    }
   }
   root.addEventListener('click', onClick);
   function onBetInput() {
@@ -90,5 +196,14 @@ export function mountBlackjack(root, player) {
   }
   $('#bj-bet').addEventListener('input', onBetInput);
   render();
-  return () => { game.stand(); root.removeEventListener('click', onClick); $('#bj-bet').removeEventListener('input', onBetInput); };
+  return () => {
+    disposed = true;
+    for (const [timer, resolve] of pending) { clearTimeout(timer); resolve(false); }
+    pending.clear();
+    for (const animation of animations) animation.cancel();
+    animations.clear();
+    game.stand();
+    root.removeEventListener('click', onClick);
+    $('#bj-bet').removeEventListener('input', onBetInput);
+  };
 }
