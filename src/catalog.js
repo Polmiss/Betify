@@ -49,13 +49,13 @@ export const games = [
     "color": "blue",
     "tag": null,
     "players": "1 gracz",
-    "description": "Przewiduj, czy kolejna karta będzie wyższa czy niższa od obecnej. Każdy trafny wybór przedłuża Twoją serię.",
+    "description": "Typuj kolejną kartę, buduj mnożnik i odbieraj żetony po trafieniu. As jest najniższy, a król najwyższy.",
     "rules": [
       "Sprawdź wartość odkrytej karty.",
       "Wybierz, czy następna karta będzie wyższa czy niższa.",
       "Odkrywaj kolejne karty i zakończ serię w wybranym momencie."
     ],
-    "status": "planned"
+    "status": "playable"
   },
   {
     "id": "mines",

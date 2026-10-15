@@ -1,6 +1,6 @@
 # Betify
 
-Demonstracyjna symulacja kasyna z wirtualnym saldem. Bez wpłat, wypłat i prawdziwych pieniędzy. Dostępne są blackjack i europejska ruletka. Gry otwierają się w nowych kartach na pełnych stronach.
+Demonstracyjna symulacja kasyna z wirtualnym saldem. Bez wpłat, wypłat i prawdziwych pieniędzy. Dostępne są High Low, blackjack i europejska ruletka. Gry otwierają się w nowych kartach na pełnych stronach.
 
 ## Uruchomienie
 
@@ -28,7 +28,22 @@ npm run preview
 - Animowane rozdawanie kart z talii, obrót zakrytej karty krupiera i jego tura krok po kroku. Ruchy są blokowane podczas animacji; ustawienie systemowe ograniczenia ruchu wyłącza efekty i opóźnienia.
 - Klawiaturowa nawigacja, natywne okna dialogowe i ograniczone animacje dla `prefers-reduced-motion`.
 
-Blackjack i ruletka są oznaczone jako **Zagraj teraz**, a pozostałe gry jako **Wkrótce**. Nie ma płatności, kont użytkowników ani backendu. Saldo i ulubione są lokalne, synchronizowane między kartami i mogą być edytowane przez użytkownika. To celowe dla demonstracyjnego projektu. Czcionki pobierane są z Google Fonts; przy braku dostępu używany jest font systemowy. Grafiki są lokalne.
+High Low, blackjack i ruletka są oznaczone jako **Zagraj teraz**, a pozostałe gry jako **Wkrótce**. Nie ma płatności, kont użytkowników ani backendu. Saldo i ulubione są lokalne, synchronizowane między kartami i mogą być edytowane przez użytkownika. To celowe dla demonstracyjnego projektu. Czcionki pobierane są z Google Fonts; przy braku dostępu używany jest font systemowy. Grafiki są lokalne.
+
+## High Low
+
+Otwórz `game.html#high-low`. Wariant inspirowany [oficjalnymi zasadami Stake Hilo](https://stake.com/blog/how-to-play-hilo-on-stake) i [opisem wyborów przy A/K](https://stake.us/casino/games/hilo). To własna implementacja demonstracyjna, bez integracji z tymi serwisami.
+
+- Kolejność rang: A = 1, 2–10, J = 11, Q = 12, K = 13. Kolory nie mają znaczenia.
+- Losowanie ze zwracaniem przez Web Crypto z rejection sampling: każda z 52 kart ma jednakową szansę, każda ranga 1/13. Powtórzenia są możliwe.
+- Dla rang 2–Q wybiera się „wyżej lub taka sama” / „niżej lub taka sama”. Przy A: wyżej (12/13) albo taka sama (1/13); przy K: taka sama (1/13) albo niżej (12/13).
+- Po trafieniu można odebrać żetony albo kontynuować. Błąd traci całą stawkę i nieodebraną wygraną. Saldo pobierane jest raz na początku serii; kolejne typy nie pobierają dodatkowych stawek.
+- Mnożnik Betify: `0.99 / (p1 * p2 * ... * pn)`. Współczynnik 0,99 stosowany jest raz, przy pierwszym trafieniu. Wyświetlane szanse i następny łączny mnożnik odpowiadają dokładnie temu obliczeniu. Wypłata zawiera stawkę i jest zaokrąglana w dół do całkowitych żetonów.
+- Stawka 10–5 000, maksymalny mnożnik 1 000×, maksymalna wypłata 1 000 000 żetonów. Trafienie limitu automatycznie kończy serię. Wypłatę ogranicza także wolne miejsce w portfelu; zaokrąglenia i limity wpływają na końcowy zwrot.
+- Pominięcie zmienia kartę bez zmiany mnożnika i bez pobierania żetonów. Limit 52 pominięć w aktywnej rundzie; przed startem bez limitu.
+- Przy zwykłym wyjściu z gry odbieramy żetony po trafieniach; przed pierwszym typem zwracamy stawkę. Awaryjne zamknięcie może uniemożliwić rozliczenie. Reset przerywa animacje, rozlicza serię i ustawia saldo dokładnie na 10 000.
+
+Kod: `src/games/high-low/{engine,high-low}.js` oraz `high-low.css`. Testy: `tests/high-low.test.js` (wszystkie rangi i kierunki, mnożniki, pomijanie, wypłaty, limity i zamknięcie rundy).
 
 ## Blackjack
 

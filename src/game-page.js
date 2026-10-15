@@ -5,6 +5,7 @@ import { games } from './catalog.js';
 import { browserPlayer } from './player-session.js';
 import { mountRoulette } from './games/roulette/roulette.js';
 import { mountBlackjack } from './games/blackjack.js';
+import { mountHighLow } from './games/high-low/high-low.js';
 import { artwork } from './artwork.js';
 import { icon } from './icons.js';
 import { showGameHelp } from './game-help.js';
@@ -57,6 +58,7 @@ function render() {
   document.title = `${game.name} — Betify`;
   if (id === 'roulette') cleanup = mountRoulette(surface, { player });
   else if (id === 'blackjack') { surface.classList.add('blackjack-game'); cleanup = mountBlackjack(surface, player); }
+  else if (id === 'high-low') { surface.classList.add('high-low-game'); cleanup = mountHighLow(surface, player); }
   else {
     surface.innerHTML = `<section class="game-placeholder"><div class="game-placeholder-art ${game.color}">${artwork(id, 'page')}</div><div><span class="eyebrow">BETIFY ORIGINALS · WKRÓTCE</span><h1>${game.name}<span class="mint">.</span></h1><h2>${game.tagline}</h2><p>${game.description}</p><ol class="rules">${game.rules.map((rule) => `<li>${rule}</li>`).join('')}</ol><button class="button button-primary" id="page-favorite">${icon('heart')}<span></span></button><p class="game-placeholder-note">Przygotowujemy tę grę. Tymczasem zagraj w ruletkę lub blackjacka.</p></div></section>`;
     const favorite = document.querySelector('#page-favorite');
