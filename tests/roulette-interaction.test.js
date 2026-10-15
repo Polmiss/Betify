@@ -38,6 +38,34 @@ test('5k and 10k chips are accepted, with bank and table limits enforced', () =>
   assert.deepEqual(rack.totals(), { red: 100000 });
 });
 
+test('all-in adds only the uncommitted balance and preserves exact denominations for repeat', () => {
+  const rack = createBettingRack();
+  rack.add('red', 100, 10017);
+  assert.equal(rack.allIn('number-7', 10017), 9917);
+  assert.deepEqual(rack.totals(), { red: 100, 'number-7': 9917 });
+  assert.ok(rack.stack('number-7').includes(5) && rack.stack('number-7').includes(1));
+  const saved = rack.snapshot();
+  rack.clear(); rack.restore(saved, 10017);
+  assert.deepEqual(rack.snapshot(), saved);
+  assert.throws(() => rack.allIn('black', 10017));
+  assert.deepEqual(rack.snapshot(), saved);
+  assert.equal(rack.remove('number-7').amount, 1);
+  assert.equal(rack.allIn('black', 10017), 1);
+  assert.deepEqual(rack.stack('black'), [1]);
+});
+
+test('all-in never partially changes the table when balance, field or round limit is invalid', () => {
+  const rack = createBettingRack();
+  rack.add('red', 100, 200000);
+  const saved = rack.snapshot();
+  for (const [id, balance] of [['black', 100001], ['bad', 10000], ['black', 0], ['black', 100.5]]) {
+    assert.throws(() => rack.allIn(id, balance));
+    assert.deepEqual(rack.snapshot(), saved);
+  }
+  assert.equal(rack.allIn('black', 100000), 99900);
+  assert.deepEqual(rack.totals(), { red: 100, black: 99900 });
+});
+
 test('variable ball trajectories finish inside the correct moving wheel pocket in either direction', () => {
   for (const randomValue of [.1, .55, .93]) for (const pocket of WHEEL) {
     const plan = createSpinPlan(pocket, 1589, -4790, () => randomValue, 140);

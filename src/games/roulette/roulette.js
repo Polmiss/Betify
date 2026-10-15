@@ -23,6 +23,7 @@ export function mountRoulette(root, { player }) {
   const rack = createBettingRack();
   let previousStack = [];
   let selectedChip = 100;
+  let allInSelected = false;
   let spinning = false;
   let settled = false;
   let wheelAngle = 0;
@@ -48,7 +49,7 @@ export function mountRoulette(root, { player }) {
       <section class="rt-table-panel" aria-label="Obstawianie ruletki">
         <div class="rt-balance-row"><div><span>TWOJA WIRTUALNA PULA</span><strong><i>◈</i> <span data-rt-balance>${format.format(player.getState().balance)}</span></strong></div><span class="rt-limit">Limit rundy<br><strong>100 000</strong></span></div>
         <div class="rt-chips-label"><span>1. Wybierz żeton</span><small>LPM dodaje · PPM zdejmuje żeton</small></div>
-        <div class="rt-chips" role="group" aria-label="Wartość żetonu">${chips.map((amount, i) => `<button class="rt-chip rt-chip-${i} ${amount === selectedChip ? 'rt-selected' : ''}" data-rt-chip="${amount}" aria-pressed="${amount === selectedChip}" aria-label="Żeton ${amount}">${chipLabel(amount)}</button>`).join('')}</div>
+        <div class="rt-chips" role="group" aria-label="Wartość żetonu">${chips.map((amount, i) => `<button class="rt-chip rt-chip-${i} ${amount === selectedChip ? 'rt-selected' : ''}" data-rt-chip="${amount}" aria-pressed="${amount === selectedChip}" aria-label="Żeton ${amount}"><span>${chipLabel(amount)}</span></button>`).join('')}<button class="rt-all-in" data-rt-action="all-in" aria-pressed="false" title="Postaw pozostałe saldo na wybrane pole">All in</button></div>
         <div class="rt-table-label"><span>2. Postaw na swoje pola</span><small>0–36 · jedno zero</small></div>
         <div class="rt-table">
           <div class="rt-number-board">${button('number-0', '0', 'rt-zero')}${Array.from({ length: 36 }, (_, i) => { const n = i + 1; return button(`number-${n}`, n, `rt-${colorOf(n)}`).replace('data-rt-bet', `style="--col:${Math.floor(i / 3) + 2};--row:${3 - i % 3};--mobile-col:${i % 3 + 1};--mobile-row:${Math.floor(i / 3) + 2}" data-rt-bet`); }).join('')}${[1, 2, 3].map((n) => button(`column-${n}`, '2:1', 'rt-column').replace('data-rt-bet', `style="--row:${4 - n};--mobile-col:${n}" data-rt-bet`)).join('')}</div>
@@ -62,13 +63,21 @@ export function mountRoulette(root, { player }) {
         <p class="rt-footnote">Bez wpłat i wypłat. Żetony nie mają wartości pieniężnej.</p>
       </section>
     </div>
-    <section class="rt-rules" hidden aria-label="Zasady ruletki"><h3>Jak gramy?</h3><p>Wybierz nominał. Lewy przycisk myszy dodaje żeton, a prawy zdejmuje ostatni żeton z danego pola. Na telefonie możesz użyć minusa przy zakładzie. „Cofnij” usuwa ostatni dołożony żeton. Zakłady split, street i corner nie są dostępne w tej wersji.</p><div class="rt-payouts"><span>Jedna liczba <strong>35:1</strong></span><span>Tuzin lub kolumna <strong>2:1</strong></span><span>Kolor, parzystość, 1–18 / 19–36 <strong>1:1</strong></span></div><p>Wypłata obejmuje wygraną oraz zwrot zwycięskiej stawki (odpowiednio ×36, ×3 lub ×2). Zero przegrywa wszystkie zakłady poza zakładem na samą liczbę 0. Każda liczba ma szansę 1/37; przewaga stołu wynosi około 2,70%.</p><p>Wynik i saldo są rozliczane przy rozpoczęciu obrotu. Animacja tylko pokazuje wynik — zamknięcie gry nie anuluje rundy ani nie zabiera wygranej.</p></section>
+    <section class="rt-rules" hidden aria-label="Zasady ruletki"><h3>Jak gramy?</h3><p>Wybierz nominał. Lewy przycisk myszy dodaje żeton, a prawy zdejmuje ostatni żeton z danego pola. Na telefonie możesz użyć minusa przy zakładzie. „Cofnij” usuwa ostatni dołożony żeton. „All in” pozwala postawić całe pozostałe saldo: wybierz przycisk, a potem pole. Wcześniejsze zakłady zostają na stole. Limit rundy wynosi 100 000 żetonów. Zakłady split, street i corner nie są dostępne w tej wersji.</p><div class="rt-payouts"><span>Jedna liczba <strong>35:1</strong></span><span>Tuzin lub kolumna <strong>2:1</strong></span><span>Kolor, parzystość, 1–18 / 19–36 <strong>1:1</strong></span></div><p>Wypłata obejmuje wygraną oraz zwrot zwycięskiej stawki (odpowiednio ×36, ×3 lub ×2). Zero przegrywa wszystkie zakłady poza zakładem na samą liczbę 0. Każda liczba ma szansę 1/37; przewaga stołu wynosi około 2,70%.</p><p>Wynik i saldo są rozliczane przy rozpoczęciu obrotu. Animacja tylko pokazuje wynik — zamknięcie gry nie anuluje rundy ani nie zabiera wygranej.</p></section>
   </div>`;
 
   const find = (selector) => root.querySelector(selector);
   function message(text, error = false) { const node = find('.rt-message'); node.textContent = text; node.classList.toggle('rt-error', error); }
   function updateBalance() { if (!spinning) find('[data-rt-balance]').textContent = format.format(player.getState().balance); }
   const unsubscribe = player.subscribe(() => { updateBalance(); if (!spinning) renderBets(); });
+
+  function renderChipSelection() {
+    root.querySelectorAll('[data-rt-chip]').forEach((node) => {
+      const selected = !allInSelected && Number(node.dataset.rtChip) === selectedChip;
+      node.classList.toggle('rt-selected', selected); node.setAttribute('aria-pressed', String(selected));
+    });
+    find('[data-rt-action="all-in"]').setAttribute('aria-pressed', String(allInSelected));
+  }
 
   function renderBets() {
     const bets = rack.totals();
@@ -81,7 +90,9 @@ export function mountRoulette(root, { player }) {
       const stack = rack.stack(node.dataset.rtBet);
       const badge = node.querySelector('.rt-chip-stack');
       badge.hidden = !stack.length;
-      badge.innerHTML = stack.slice(-6).map((value, level) => `<i class="rt-stack-token rt-chip-${chips.indexOf(value)}" style="--level:${level}">${chipLabel(value)}</i>`).join('') + (stack.length > 6 ? `<b class="rt-stack-more">+${stack.length - 6}</b>` : '');
+      const visibleStack = stack.slice(-6);
+      badge.innerHTML = visibleStack.map((value, level) => `<i class="rt-stack-token rt-chip-${Math.max(0, chips.indexOf(value))}" style="--level:${level}">${level === visibleStack.length - 1 ? `<span>${chipLabel(value)}</span>` : ''}</i>`).join('');
+      node.title = `${BETS[node.dataset.rtBet].label}${amount ? ` · ${format.format(amount)} żetonów · ${stack.length} szt.` : ''}`;
       node.classList.toggle('rt-has-bet', !!amount);
       node.classList.toggle('rt-winning', settled && result?.winningIds.includes(node.dataset.rtBet));
       node.classList.toggle('rt-winning-number', settled && node.dataset.rtBet === `number-${result?.pocket}`);
@@ -101,6 +112,9 @@ export function mountRoulette(root, { player }) {
     find('[data-rt-action="clear"]').disabled = spinning || !total;
     find('[data-rt-action="repeat"]').disabled = spinning || !previousStack.length;
     root.querySelectorAll('[data-rt-chip]').forEach((node) => { node.disabled = spinning; });
+    const available = Math.max(0, player.getState().balance - total);
+    find('[data-rt-action="all-in"]').disabled = spinning || !available;
+    find('[data-rt-action="all-in"]').title = `All in: ${format.format(available)} żetonów. Wybierz przycisk, a następnie pole. Limit rundy: 100 000.`;
   }
 
   function finish() {
@@ -187,17 +201,29 @@ export function mountRoulette(root, { player }) {
     if (target.dataset.rtRemove) { removeChip(target.dataset.rtRemove); return; }
     if (target.dataset.rtChip) {
       selectedChip = Number(target.dataset.rtChip);
-      root.querySelectorAll('[data-rt-chip]').forEach((node) => { const selected = Number(node.dataset.rtChip) === selectedChip; node.classList.toggle('rt-selected', selected); node.setAttribute('aria-pressed', String(selected)); });
+      allInSelected = false; renderChipSelection();
+      message(`Wybrano żeton ${format.format(selectedChip)}. Kliknij pole na planszy.`);
     }
     if (target.dataset.rtBet) {
       const id = target.dataset.rtBet;
-      try { rack.add(id, selectedChip, player.getState().balance); }
+      let amount = selectedChip;
+      const wasAllIn = allInSelected;
+      try {
+        player.refresh?.(false);
+        if (wasAllIn) amount = rack.allIn(id, player.getState().balance);
+        else rack.add(id, selectedChip, player.getState().balance);
+      }
       catch (error) { message(error.message, true); return; }
       settled = false;
-      message(`Dodano ${format.format(selectedChip)} żetonów: ${BETS[id].label}.`);
+      allInSelected = false; renderChipSelection();
+      message(`${wasAllIn ? 'All in' : 'Dodano'}: ${format.format(amount)} żetonów · ${BETS[id].label}.`);
       renderBets();
     }
     switch (target.dataset.rtAction) {
+      case 'all-in':
+        allInSelected = !allInSelected; renderChipSelection();
+        message(allInSelected ? 'All in wybrane. Kliknij pole, aby postawić na nim pozostałe saldo.' : `Wybrano żeton ${format.format(selectedChip)}.`);
+        break;
       case 'spin': spin(); break;
       case 'clear': rack.clear(); settled = false; renderBets(); message('Stół wyczyszczony. Wybierz nowe pola.'); break;
       case 'undo': {

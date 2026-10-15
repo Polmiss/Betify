@@ -40,6 +40,11 @@
 .rt-chip::after{content:'';position:absolute;inset:4px;border:1px solid currentColor;border-radius:50%;opacity:.35}
 .rt-chip-0{--chip-bg:#d8e1d0;--chip-fg:#35462d}.rt-chip-1{--chip-bg:#a94c5c;--chip-fg:#f0d7d7}.rt-chip-2{--chip-bg:#4e8f76;--chip-fg:#e0eace}.rt-chip-3{--chip-bg:#66518b;--chip-fg:#e1d6ef}.rt-chip-4{--chip-bg:#30383b;--chip-fg:#dcc9a4}
 .rt-chip.rt-selected{outline:2px solid #b8f575;outline-offset:5px;transform:translateY(-3px)}
+.rt-chip>span,.rt-stack-token>span{position:relative;z-index:1;line-height:1;font-variant-numeric:tabular-nums}
+.rt-all-in{align-self:center;flex-shrink:0;height:34px;padding:0 12px;border:1px solid #d0b67b;border-radius:7px;background:#433b26;color:#fff0c2;font-size:11px;font-weight:800;white-space:nowrap;transition:background .15s,box-shadow .15s}
+.rt-all-in:hover:not(:disabled){background:#66532d}
+.rt-all-in[aria-pressed=true]{background:#f1d38f;color:#332710;box-shadow:0 0 0 2px #f1d38f55}
+.rt-all-in:disabled{opacity:.4;cursor:default}
 .rt-chip:hover:not(:disabled){transform:translateY(-3px)}
 .rt-chip:disabled{opacity:.5;cursor:default}
 .rt-table{margin-top:12px;padding:10px;border:1px solid #526447;border-radius:8px;background:radial-gradient(ellipse at 40% 30%,#315e3b,#20442d);box-shadow:inset 0 0 35px #102a2244}

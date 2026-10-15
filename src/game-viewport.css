@@ -30,7 +30,7 @@ body.game-page{--game-bar:clamp(38px,6.5dvh,58px);height:100dvh;min-height:0;ove
 .game-page .rt-history>div{margin-top:5px;min-height:22px;gap:5px;flex-wrap:nowrap}
 .game-page .rt-history-number{min-width:22px;height:22px;font-size:10px}
 .game-page .rt-history small{font-size:9px}
-.game-page .rt-table-panel{height:100%;min-width:0;min-height:0;padding:12px;display:grid;grid-template-rows:40px 15px 38px minmax(0,1fr) 20px 116px 27px 40px;gap:6px}
+.game-page .rt-table-panel{height:100%;min-width:0;min-height:0;padding:12px;display:grid;grid-template-rows:40px 15px 46px minmax(0,1fr) 20px 116px 27px 40px;gap:6px}
 .game-page .rt-balance-row{margin:0;min-height:0;align-items:center}
 .game-page .rt-balance-row>div>span{font-size:7px}
 .game-page .rt-balance-row>div>strong{font-size:22px;margin-top:1px;line-height:1.1}
@@ -39,8 +39,11 @@ body.game-page{--game-bar:clamp(38px,6.5dvh,58px);height:100dvh;min-height:0;ove
 .game-page .rt-limit strong{font-size:11px}
 .game-page .rt-chips-label{font-size:10px;min-height:0}
 .game-page .rt-chips-label small{display:block;font-size:9px}
-.game-page .rt-chips{margin:0 4px;gap:18px;min-height:0;flex-wrap:nowrap;align-items:center}
-.game-page .rt-chip{width:31px;height:31px;font-size:9px;border-width:3px;flex-shrink:0}
+.game-page .rt-chips{margin:0 4px;gap:clamp(4px,1vw,14px);min-height:0;flex-wrap:nowrap;align-items:center;justify-content:space-between}
+.game-page .rt-chip{width:clamp(28px,3.1vw,42px);height:clamp(28px,3.1vw,42px);font-size:11px;border-width:1px;flex-shrink:0;box-shadow:0 2px 0 #0a141c,0 3px 5px #0008}
+.game-page .rt-chip,.game-page .rt-stack-token{background:radial-gradient(circle,var(--chip-bg) 57%,transparent 59%),repeating-conic-gradient(var(--chip-fg) 0deg 13deg,var(--chip-bg) 13deg 60deg);border:1px solid #0a191c}
+.game-page .rt-chip::after{inset:4px;opacity:.65}
+.game-page .rt-chip:focus-visible,.game-page .rt-all-in:focus-visible{outline:2px solid #fff;outline-offset:3px}
 .game-page .rt-chip.rt-selected{transform:none;outline-offset:3px}
 .game-page .rt-table-label,.game-page .rt-footnote{display:none}
 .game-page .rt-table{margin:0;min-height:0;padding:7px;display:grid;grid-template-rows:minmax(0,3fr) minmax(0,1fr) minmax(0,1fr);gap:3px}
@@ -55,7 +58,7 @@ body.game-page{--game-bar:clamp(38px,6.5dvh,58px);height:100dvh;min-height:0;ove
 .game-page .rt-dozens small{display:none}
 .game-page .rt-diamond{width:12px;height:12px}
 .game-page .rt-chip-stack{width:20px;height:20px;right:2px;bottom:2px}
-.game-page .rt-stack-token{width:20px;height:20px;font-size:7px;bottom:calc(var(--level)*1.7px);right:calc(var(--level)*.3px)}
+.game-page .rt-stack-token{width:22px;height:22px;font-size:8px;bottom:calc(var(--level)*1.8px);right:calc(var(--level)*.3px);box-shadow:0 1.5px 0 #071a21,0 2.5px 2px #0008}
 .game-page .rt-number-board .rt-has-bet>span:first-child{font-size:10px;transform:translate(-5px,-5px)}
 .game-page .rt-tools{margin:0;min-height:0;gap:8px}
 .game-page .rt-tools button{font-size:10px;padding:0}
@@ -163,6 +166,7 @@ body.game-page{--game-bar:clamp(38px,6.5dvh,58px);height:100dvh;min-height:0;ove
   .game-page .rt-table-panel{grid-template-rows:28px 12px 31px minmax(0,1fr) 17px 100px 22px 34px;gap:4px;padding:9px}
   .game-page .rt-balance-row>div>span{display:none}
   .game-page .rt-chip{width:27px;height:27px;font-size:8px}
+  .game-page .rt-all-in{height:27px;padding-inline:9px;font-size:9px}
   .game-page .rt-wheel-panel{padding:10px;gap:7px}
   .game-page .rt-result{min-height:52px;padding:7px}
   .game-page .rt-history>span{display:none}
@@ -201,7 +205,8 @@ body.game-page{--game-bar:clamp(38px,6.5dvh,58px);height:100dvh;min-height:0;ove
   .game-page .rt-table-panel{grid-template-rows:32px minmax(0,1fr) 18px 83px 23px 36px;gap:4px;padding:8px}
   .game-page .rt-balance-row,.game-page .rt-chips-label{display:none}
   .game-page .rt-chips{margin:0 3px;justify-content:space-between;gap:5px}
-  .game-page .rt-chip{width:27px;height:27px;font-size:8px}
+  .game-page .rt-chip{width:29px;height:29px;font-size:9px}
+  .game-page .rt-all-in{height:28px;padding-inline:8px;font-size:9px}
   .game-page .rt-table{padding:5px;grid-template-rows:minmax(0,8fr) minmax(0,1fr) minmax(0,2fr);gap:2px}
   .game-page .rt-number-board{grid-template-columns:repeat(6,minmax(0,1fr));grid-template-rows:repeat(8,minmax(0,1fr));gap:2px}
   .game-page .rt-number-board .rt-bet:not(.rt-zero):not(.rt-column){grid-column:auto;grid-row:auto;font-size:12px}
@@ -268,6 +273,7 @@ body.game-page{--game-bar:clamp(38px,6.5dvh,58px);height:100dvh;min-height:0;ove
   .game-page .rt-table-panel{grid-template-rows:26px minmax(0,1fr) 16px 74px 20px 30px;gap:3px;padding:6px}
   .game-page .rt-balance-row,.game-page .rt-chips-label{display:none}
   .game-page .rt-chip{width:23px;height:23px;font-size:7px;border-width:2px}
+  .game-page .rt-all-in{height:23px;padding-inline:7px;font-size:8px}
   .game-page .rt-chip.rt-selected{outline-offset:2px}
   .game-page .rt-slip{grid-template-rows:16px minmax(0,1fr) 18px;padding:4px 7px}
   .game-page .rt-bet-list small{font-size:7px}
@@ -330,7 +336,8 @@ body.game-page{--game-bar:clamp(38px,6.5dvh,58px);height:100dvh;min-height:0;ove
   .game-page .rt-wheel-stage{grid-row:1/span 2}
   .game-page .rt-history{display:none}
   .game-page .rt-table-panel{grid-template-rows:29px minmax(0,1fr) 16px 72px 19px 33px;gap:3px;padding:6px}
-  .game-page .rt-chip{width:25px;height:25px;font-size:7px}
+  .game-page .rt-chip{width:25px;height:25px;font-size:8px}
+  .game-page .rt-all-in{height:25px;font-size:8px}
   .game-page .rt-slip{grid-template-rows:16px minmax(0,1fr) 18px;padding:4px 7px}
   .game-page .rt-message{font-size:8px}
 }
