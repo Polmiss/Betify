@@ -4,6 +4,7 @@ import { createPlayerStore } from './store.js';
 import { icon } from './icons.js';
 import { artwork, heroArtwork } from './artwork.js';
 import { mountBlackjack } from './games/blackjack.js';
+import { mountRoulette } from './games/roulette/roulette.js';
 
 const storage = { getItem: (key) => window.localStorage.getItem(key), setItem: (key, value) => window.localStorage.setItem(key, value) };
 const player = createPlayerStore(storage);
@@ -125,8 +126,14 @@ function openDialog(content) {
 function openGame(id) {
   const game = games.find((item) => item.id === id);
   if (!game) return;
+  if (id === 'roulette') {
+    if (cleanupGame && dialog.classList.contains('roulette-dialog')) return;
+    openDialog('<div id="roulette-game"></div>');
+    cleanupGame = mountRoulette(document.querySelector('#roulette-game'), { player });
+    return;
+  }
   if (id === 'blackjack') {
-    if (cleanupGame) return;
+    if (cleanupGame && dialog.classList.contains('blackjack-dialog')) return;
     openDialog('');
     dialog.classList.add('blackjack-dialog');
     cleanupGame = mountBlackjack(document.querySelector('#dialog-content'), player);
