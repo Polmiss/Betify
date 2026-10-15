@@ -1,6 +1,6 @@
 # Betify
 
-Demonstracyjna symulacja kasyna z wirtualnym saldem. Bez wpłat, wypłat i prawdziwych pieniędzy. Lobby zawiera już grywalnego blackjacka przeciwko krupierowi.
+Demonstracyjna symulacja kasyna z wirtualnym saldem. Bez wpłat, wypłat i prawdziwych pieniędzy. Dostępne są blackjack i europejska ruletka. Gry otwierają się w nowych kartach na pełnych stronach.
 
 ## Uruchomienie
 
@@ -28,7 +28,7 @@ npm run preview
 - Animowane rozdawanie kart z talii, obrót zakrytej karty krupiera i jego tura krok po kroku. Ruchy są blokowane podczas animacji; ustawienie systemowe ograniczenia ruchu wyłącza efekty i opóźnienia.
 - Klawiaturowa nawigacja, natywne okna dialogowe i ograniczone animacje dla `prefers-reduced-motion`.
 
-Blackjack jest oznaczony jako **Zagraj teraz**, a pozostałe gry jako **Wkrótce**. Nie ma płatności, kont użytkowników ani backendu. Saldo jest lokalne i może być edytowane przez użytkownika — to celowe dla demonstracyjnego projektu. Czcionki pobierane są z Google Fonts; przy braku dostępu używany jest font systemowy. Grafiki są lokalne.
+Blackjack i ruletka są oznaczone jako **Zagraj teraz**, a pozostałe gry jako **Wkrótce**. Nie ma płatności, kont użytkowników ani backendu. Saldo i ulubione są lokalne, synchronizowane między kartami i mogą być edytowane przez użytkownika. To celowe dla demonstracyjnego projektu. Czcionki pobierane są z Google Fonts; przy braku dostępu używany jest font systemowy. Grafiki są lokalne.
 
 ## Blackjack
 
@@ -36,7 +36,17 @@ Kliknij Blackjack w lobby lub otwórz `#game/blackjack`. Wybierz parzystą stawk
 
 Gra korzysta z sześciu talii tasowanych przez Web Crypto (ponowne tasowanie przed rundą, gdy zostaje mniej niż 60 kart). Krupier stoi na każdym 17, również miękkim. Można podwoić pierwsze dwie karty przy wystarczającym saldzie: dodatkowa stawka, dokładnie jedna karta i automatyczny pas. Bez podziału par, ubezpieczenia i poddania.
 
-Zamknięcie okna gry, Escape albo przejście do innej sekcji automatycznie pasuje i rozlicza otwartą rundę. Odświeżenie lub zamknięcie całej strony podczas rundy powoduje utratę postawionych żetonów; aktywne rozdanie nie jest zapisywane. Historia rund dotyczy aktualnego otwarcia stołu. Saldo jest zapisywane po każdej operacji. Darmowe uzupełnienie znajduje się w portfelu lobby.
+Przejście do innej gry lub opuszczenie strony wywołuje sprzątanie i rozliczenie otwartej rundy. Aktywne rozdanie nie jest zapisywane, więc awaryjne zamknięcie przeglądarki może spowodować utratę stawki. Historia dotyczy aktualnego otwarcia stołu. Saldo jest zapisywane po każdej operacji. Darmowe uzupełnienie jest dostępne także w nagłówku strony gry.
+
+## Ruletka i strony gier
+
+`game.html#roulette` i `game.html#blackjack` otwierają gry bez okien modalnych. Karty w lobby używają zwykłych linków z `target="_blank"`. Starsze linki `#game/roulette` i `#game/blackjack` przekierowują do nowej strony.
+
+Ruletka ma europejskie koło z jednym zerem, zakłady na liczby, kolory, parzystość, zakresy, tuziny i kolumny. Nominały: 10, 50, 100, 500, 1 000, 5 000 i 10 000. Lewy klik dodaje żeton, prawy zdejmuje ostatni żeton z danego pola. Na telefonie służy do tego minus w podsumowaniu. Powtarzanie zakładów odtwarza dokładne nominały i kolejność stosów. Podsumowanie pokazuje każdą stawkę osobno, jej skład oraz łączną kwotę pomocniczą.
+
+Każdy obrót otrzymuje nowy plan ruchu: 10–14,5 sekundy, zmienny kierunek, liczbę obrotów, prędkość, punkt opadania i odbicia kulki. Kulka krąży niezależnie od koła, opada i zatrzymuje się w kieszeni zgodnej z wynikiem. `prefers-reduced-motion` skraca efekty. Losowanie wyniku pozostaje niezależne od animacji; saldo jest rozliczane przed jej startem.
+
+Kod stron gier: `src/game-page.js`, układy: `src/game-page.css`, wspólna kolorystyka: `src/theme.css`. Ruletka: `src/games/roulette/{engine,betting,motion,roulette}.js` oraz `roulette.css`.
 
 ## Struktura i kolejne gry
 
@@ -61,7 +71,7 @@ Aby dodać grę:
 
 1. Dodaj jej metadane do `src/catalog.js` i ilustrację do `src/artwork.js`.
 2. Utwórz osobny moduł, np. `src/games/blackjack.js`, z funkcją montującą rozgrywkę i sprzątającą po wyjściu.
-3. W funkcji `openGame` w `src/main.js` podłącz moduł i ustaw `status: 'playable'` w katalogu. Blackjack jest gotowym przykładem; pozostałe gry otwierają opis. Zwrócona funkcja sprzątająca powinna rozliczyć aktywną rundę i odpiąć zdarzenia.
+3. W funkcji `render` w `src/game-page.js` podłącz moduł i ustaw `status: 'playable'` w katalogu. Pozostałe gry otwierają pełnostronicowy opis. Zwrócona funkcja sprzątająca powinna rozliczyć aktywną rundę i odpiąć zdarzenia.
 4. Korzystaj z API `player.debit(amount)`, `player.credit(amount)` i `player.subscribe(listener)`; kwoty są całkowitymi żetonami. Obie operacje zwracają `false` przy niedopuszczalnej kwocie.
 5. Utrzymaj linki przez hash. Dzięki temu bezpośrednie wejście i odświeżenie działają na hostingu statycznym bez reguł serwera.
 

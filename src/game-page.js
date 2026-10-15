@@ -1,0 +1,45 @@
+import './style.css';
+import './theme.css';
+import './game-page.css';
+import { games } from './catalog.js';
+import { browserPlayer } from './player-session.js';
+import { mountRoulette } from './games/roulette/roulette.js';
+import { mountBlackjack } from './games/blackjack.js';
+import { artwork } from './artwork.js';
+import { icon } from './icons.js';
+
+const player = browserPlayer();
+const format = new Intl.NumberFormat('pl-PL');
+let cleanup;
+document.querySelector('#app').innerHTML = `<header class="game-topbar"><a class="game-back" href="./">${icon('arrow')}<span>Lobby</span></a><a class="game-wordmark" href="./">betify<span>.</span></a><span class="game-mode">WIRTUALNA ROZGRYWKA</span><div class="game-page-wallet">${icon('coin')}<strong class="balance-value"></strong><button class="game-refill" aria-label="Dodaj 5 000 darmowych żetonów">+ 5k</button></div></header><main class="game-surface" id="game-content"></main><p class="game-page-notice" role="status" hidden></p>`;
+const surface = document.querySelector('#game-content');
+function updateWallet() {
+  document.querySelectorAll('.balance-value').forEach((node) => { node.textContent = format.format(player.getState().balance); });
+  const notice = document.querySelector('.game-page-notice');
+  notice.hidden = player.getState().persistent;
+  notice.textContent = 'Zapisywanie jest niedostępne. Saldo zostaje tylko do odświeżenia tej karty.';
+}
+player.subscribe(updateWallet);
+document.querySelector('.game-refill').addEventListener('click', () => { player.credit(5000); });
+
+function render() {
+  cleanup?.(); cleanup = undefined;
+  surface.className = 'game-surface';
+  const id = location.hash.replace(/^#(?:game\/)?/, '') || 'roulette';
+  const game = games.find((item) => item.id === id);
+  if (!game) { document.title = 'Nie znaleziono gry — Betify'; surface.innerHTML = '<section class="game-placeholder"><h1>Nie znaleziono gry.</h1><a class="button button-primary" href="./">Wróć do lobby</a></section>'; return; }
+  document.title = `${game.name} — Betify`;
+  if (id === 'roulette') cleanup = mountRoulette(surface, { player });
+  else if (id === 'blackjack') { surface.classList.add('blackjack-game'); cleanup = mountBlackjack(surface, player); }
+  else {
+    surface.innerHTML = `<section class="game-placeholder"><div class="game-placeholder-art ${game.color}">${artwork(id, 'page')}</div><div><span class="eyebrow">BETIFY ORIGINALS · WKRÓTCE</span><h1>${game.name}<span class="mint">.</span></h1><h2>${game.tagline}</h2><p>${game.description}</p><ol class="rules">${game.rules.map((rule) => `<li>${rule}</li>`).join('')}</ol><button class="button button-primary" id="page-favorite">${icon('heart')}<span></span></button><p class="game-placeholder-note">Przygotowujemy tę grę. Tymczasem zagraj w ruletkę lub blackjacka.</p></div></section>`;
+    const favorite = document.querySelector('#page-favorite');
+    const label = () => { const selected = player.getState().favorites.includes(id); favorite.querySelector('span').textContent = selected ? 'Usuń z ulubionych' : 'Dodaj do ulubionych'; favorite.setAttribute('aria-pressed', String(selected)); };
+    favorite.addEventListener('click', () => { player.toggleFavorite(id); label(); }); label();
+  }
+  updateWallet();
+}
+window.addEventListener('hashchange', render);
+window.addEventListener('pagehide', () => cleanup?.());
+window.addEventListener('pageshow', (event) => { if (event.persisted) location.reload(); });
+render();

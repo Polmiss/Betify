@@ -51,6 +51,14 @@ test('blocked browser storage still permits an in-memory session', () => {
   assert.equal(player.getState().persistent, false);
 });
 
+test('a write failure preserves in-memory progress even when old storage remains readable', () => {
+  const storage = { getItem: () => JSON.stringify({ balance: 10000, favorites: [] }), setItem() { throw new Error('quota'); } };
+  const player = createPlayerStore(storage, { syncBeforeWrite: true });
+  player.credit(5000); player.credit(5000);
+  assert.equal(player.getState().balance, 20000);
+  assert.equal(player.getState().persistent, false);
+});
+
 test('state snapshots cannot mutate the stored favorites', () => {
   const player = createPlayerStore(memoryStorage());
   player.toggleFavorite('roulette');
@@ -58,6 +66,22 @@ test('state snapshots cannot mutate the stored favorites', () => {
   assert.deepEqual(player.getState().favorites, ['roulette']);
   player.toggleFavorite('unknown');
   assert.deepEqual(player.getState().favorites, ['roulette']);
+});
+
+test('separate game sessions refresh shared balances before spending or crediting', () => {
+  const storage = memoryStorage();
+  const lobby = createPlayerStore(storage, { syncBeforeWrite: true });
+  const roulette = createPlayerStore(storage, { syncBeforeWrite: true });
+  const blackjack = createPlayerStore(storage, { syncBeforeWrite: true });
+  roulette.debit(1000);
+  blackjack.credit(500);
+  lobby.refresh();
+  assert.equal(lobby.getState().balance, 9500);
+  assert.equal(roulette.debit(10000), false);
+  blackjack.toggleFavorite('blackjack');
+  roulette.toggleFavorite('roulette');
+  lobby.refresh();
+  assert.deepEqual(lobby.getState().favorites, ['blackjack', 'roulette']);
 });
 
 test('search composes with category and favorite filters, including Polish characters', () => {

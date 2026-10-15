@@ -45,6 +45,7 @@ export function drawPocket(random = globalThis.crypto) {
 }
 
 export function settleRound(player, bets, pocket) {
+  player.refresh?.(false);
   const result = calculateResult(bets, pocket);
   if (!result.stake) throw new Error('Najpierw postaw żetony na planszy.');
   const balance = player.getState().balance;

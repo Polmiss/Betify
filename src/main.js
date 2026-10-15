@@ -1,18 +1,16 @@
 import './style.css';
+import './theme.css';
 import { games, categories, filterGames } from './catalog.js';
-import { createPlayerStore } from './store.js';
+import { browserPlayer } from './player-session.js';
 import { icon } from './icons.js';
 import { artwork, heroArtwork } from './artwork.js';
-import { mountBlackjack } from './games/blackjack.js';
-import { mountRoulette } from './games/roulette/roulette.js';
 
-const storage = { getItem: (key) => window.localStorage.getItem(key), setItem: (key, value) => window.localStorage.setItem(key, value) };
-const player = createPlayerStore(storage);
+const player = browserPlayer();
+const gameHref = (id) => `./game.html#${encodeURIComponent(id)}`;
 const view = { category: 'all', query: '', sort: 'recommended' };
 const number = new Intl.NumberFormat('pl-PL');
 let toastTimer;
 let previousFocus;
-let cleanupGame;
 
 document.querySelector('#app').innerHTML = `
   <a class="skip-link" href="#catalog">Przejdź do gier</a>
@@ -56,7 +54,7 @@ document.querySelector('#app').innerHTML = `
       </section>
 
       <section class="catalog" id="catalog" aria-labelledby="catalog-title">
-        <div class="section-heading"><div><div class="section-title"><span class="section-icon">${icon('grid')}</span><h2 id="catalog-title">Znajdź swoją grę</h2><span class="total-count" id="total-count">8</span></div><p>Od pierwszej karty do ostatniego obrotu. Co wybierasz?</p></div><div class="planned-note">${icon('cards')} Blackjack już dostępny</div></div>
+        <div class="section-heading"><div><div class="section-title"><span class="section-icon">${icon('grid')}</span><h2 id="catalog-title">Znajdź swoją grę</h2><span class="total-count" id="total-count">8</span></div><p>Od pierwszej karty do ostatniego obrotu. Co wybierasz?</p></div><div class="planned-note">${icon('cards')} Blackjack i ruletka dostępne</div></div>
         <div class="catalog-controls"><div class="category-tabs" role="group" aria-label="Filtruj gry">${categories.map((category) => `<button class="category-tab ${category.id === 'all' ? 'active' : ''}" data-category="${category.id}" aria-pressed="${category.id === 'all'}">${icon(category.icon)} ${category.name}</button>`).join('')}<button class="category-tab" data-category="favorites" aria-pressed="false">${icon('heart')} Ulubione</button></div><label class="sort-label"><span class="sr-only">Sortuj gry</span><select id="sort"><option value="recommended">Polecane</option><option value="name">Nazwa A–Z</option></select>${icon('chevron')}</label></div>
         <div class="game-grid" id="game-grid"></div><p class="sr-only" id="result-announcement" role="status" aria-live="polite"></p>
       </section>
@@ -86,8 +84,8 @@ function renderGames() {
   document.querySelector('#result-announcement').textContent = `Liczba znalezionych gier: ${filtered.length}`;
   document.querySelector('#game-grid').innerHTML = filtered.length ? filtered.map((game) => `
     <article class="game-card ${game.color}">
-      <div class="game-visual"><button class="art-button" data-game="${game.id}" tabindex="-1" aria-hidden="true">${artwork(game.id)}</button>${game.tag ? `<span class="game-tag">${game.tag === 'Instant' ? icon('bolt') : icon('cards')}${game.tag}</span>` : ''}<button class="favorite-button ${favorites.includes(game.id) ? 'selected' : ''}" data-favorite="${game.id}" aria-label="${favorites.includes(game.id) ? 'Usuń' : 'Dodaj'} ${game.name} ${favorites.includes(game.id) ? 'z ulubionych' : 'do ulubionych'}" aria-pressed="${favorites.includes(game.id)}">${icon('heart')}</button><span class="art-label">BETIFY ORIGINALS</span></div>
-      <div class="game-info"><div class="game-heading"><h3><button data-game="${game.id}">${game.name}</button></h3><span class="game-open" aria-hidden="true">${icon('diagonal')}</span></div><p>${game.label}</p><div class="game-card-bottom"><span>${categories.find((category) => category.id === game.category).name}</span><span class="coming-soon ${game.status === 'playable' ? 'mint' : ''}"><i></i>${game.status === 'playable' ? 'Zagraj teraz' : 'Wkrótce'}</span></div></div>
+      <div class="game-visual"><a class="art-button" href="${gameHref(game.id)}" target="_blank" rel="noopener" tabindex="-1" aria-hidden="true">${artwork(game.id)}</a>${game.tag ? `<span class="game-tag">${game.tag === 'Instant' ? icon('bolt') : icon('cards')}${game.tag}</span>` : ''}<button class="favorite-button ${favorites.includes(game.id) ? 'selected' : ''}" data-favorite="${game.id}" aria-label="${favorites.includes(game.id) ? 'Usuń' : 'Dodaj'} ${game.name} ${favorites.includes(game.id) ? 'z ulubionych' : 'do ulubionych'}" aria-pressed="${favorites.includes(game.id)}">${icon('heart')}</button><span class="art-label">BETIFY ORIGINALS</span></div>
+      <div class="game-info"><div class="game-heading"><h3><a href="${gameHref(game.id)}" target="_blank" rel="noopener" aria-label="${game.name} — otwórz w nowej karcie">${game.name}</a></h3><span class="game-open" aria-hidden="true">${icon('diagonal')}</span></div><p>${game.label}</p><div class="game-card-bottom"><span>${categories.find((category) => category.id === game.category).name}</span><span class="coming-soon ${game.status === 'playable' ? 'mint' : ''}"><i></i>${game.status === 'playable' ? 'Zagraj teraz' : 'Wkrótce'}</span></div></div>
     </article>`).join('') : `<div class="empty-state">${icon(view.category === 'favorites' ? 'heart' : 'search')}<h3>${view.category === 'favorites' && !view.query ? 'Twoje typy mają tu swoje miejsce' : 'Nie znaleźliśmy takiej gry'}</h3><p>${view.category === 'favorites' && !view.query ? 'Kliknij serce na karcie gry, aby dodać ją do ulubionych.' : 'Spróbuj innej nazwy lub zobacz wszystkie kategorie.'}</p><button class="button button-secondary" data-action="clear-filters">Zobacz wszystkie gry ${icon('arrow')}</button></div>`;
 }
 
@@ -114,9 +112,6 @@ function setCategory(category, scroll = false) {
 }
 
 function openDialog(content) {
-  cleanupGame?.();
-  cleanupGame = undefined;
-  dialog.classList.remove('blackjack-dialog');
   if (document.body.classList.contains('menu-open')) closeMenu(true);
   previousFocus = document.activeElement;
   document.querySelector('#dialog-content').innerHTML = content;
@@ -124,23 +119,7 @@ function openDialog(content) {
 }
 
 function openGame(id) {
-  const game = games.find((item) => item.id === id);
-  if (!game) return;
-  if (id === 'roulette') {
-    if (cleanupGame && dialog.classList.contains('roulette-dialog')) return;
-    openDialog('<div id="roulette-game"></div>');
-    cleanupGame = mountRoulette(document.querySelector('#roulette-game'), { player });
-    return;
-  }
-  if (id === 'blackjack') {
-    if (cleanupGame && dialog.classList.contains('blackjack-dialog')) return;
-    openDialog('');
-    dialog.classList.add('blackjack-dialog');
-    cleanupGame = mountBlackjack(document.querySelector('#dialog-content'), player);
-    document.querySelector('#bj-deal').focus();
-    return;
-  }
-  openDialog(`<div class="dialog-art ${game.color}">${artwork(game.id, 'dialog')}</div><div class="dialog-body"><span class="eyebrow">${categories.find((category) => category.id === game.category).name} · ${game.players}</span><h2 id="dialog-title">${game.name}<span class="mint">.</span></h2><p class="dialog-tagline">${game.tagline}</p><p>${game.description}</p><h3>Jak to działa?</h3><ol class="rules">${game.rules.map((rule) => `<li>${rule}</li>`).join('')}</ol><div class="game-status">${icon('clock')}<div><strong>Ten stół dopiero się szykuje</strong><span>Rozgrywka pojawi się w kolejnej aktualizacji.</span></div></div><button class="button button-primary full-width" data-action="favorite-current" data-id="${game.id}">${icon('heart')}<span>${player.getState().favorites.includes(game.id) ? 'Usuń z ulubionych' : 'Dodaj do ulubionych'}</span></button><small class="dialog-footnote">Wyłącznie wirtualne żetony. Bez wpłat i wypłat.</small></div>`);
+  if (games.some((game) => game.id === id)) window.open(gameHref(id), '_blank', 'noopener');
 }
 
 function openWallet() {
@@ -154,16 +133,13 @@ function openAbout() {
 function route() {
   if (location.hash.startsWith('#game/')) {
     const id = location.hash.slice(6);
-    if (games.some((game) => game.id === id)) openGame(id);
+    if (games.some((game) => game.id === id)) location.replace(gameHref(id));
     else { history.replaceState(null, '', `${location.pathname}${location.search}#catalog`); toast('Ta gra nie istnieje w katalogu.'); if (dialog.open) dialog.close(); }
   } else if (dialog.open) dialog.close();
 }
 window.addEventListener('hashchange', route);
 dialog.addEventListener('click', (event) => { if (event.target === dialog) { const rect = dialog.getBoundingClientRect(); if (event.clientX < rect.left || event.clientX > rect.right || event.clientY < rect.top || event.clientY > rect.bottom) dialog.close(); } });
 dialog.addEventListener('close', () => {
-  cleanupGame?.();
-  cleanupGame = undefined;
-  dialog.classList.remove('blackjack-dialog');
   if (location.hash.startsWith('#game/')) history.replaceState(null, '', `${location.pathname}${location.search}#catalog`);
   if (previousFocus?.isConnected) previousFocus.focus();
 });
@@ -225,7 +201,7 @@ document.addEventListener('click', (event) => {
     case 'about': openAbout(); break;
     case 'wallet': openWallet(); break;
     case 'close-dialog': dialog.close(); break;
-    case 'random': { const random = new Uint32Array(1); crypto.getRandomValues(random); location.hash = `game/${games[random[0] % games.length].id}`; break; }
+    case 'random': { const random = new Uint32Array(1); crypto.getRandomValues(random); openGame(games[random[0] % games.length].id); break; }
     case 'top-up': toast(player.credit(5000) ? 'Dodano 5 000 wirtualnych żetonów. Miłej zabawy!' : 'Twoja wirtualna pula osiągnęła już maksymalną wielkość.'); break;
     case 'reset-balance': player.resetBalance(); toast('Saldo przywrócone do 10 000 żetonów.'); break;
     case 'favorite-current': {
