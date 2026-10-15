@@ -34,13 +34,14 @@ export function mountRoulette(root, { player }) {
   let history = [];
   let result = null;
   let disposed = false;
+  let betPage = 0;
 
   const button = (id, label, extra = '') => `<button type="button" class="rt-bet ${extra}" data-rt-bet="${id}" aria-label="Postaw na: ${BETS[id].label}"><span>${label}</span><span class="rt-chip-stack" aria-hidden="true" hidden></span></button>`;
   root.innerHTML = `<div class="rt-root">
     <header class="rt-header"><div><span class="rt-eyebrow">BETIFY ORIGINALS · EUROPEJSKA</span><h2 id="dialog-title">Ruletka<span>.</span></h2><p>Jeden obrót. Twój moment.</p></div><span class="rt-demo">TYLKO WIRTUALNE ŻETONY</span></header>
     <div class="rt-layout">
       <section class="rt-wheel-panel" aria-label="Koło ruletki"><div class="rt-wheel-top"><span><i></i> SINGLE ZERO</span><button class="rt-rules-toggle" aria-expanded="false">Zasady i wypłaty ⓘ</button></div>
-        <div class="rt-wheel-wrap">${wheelMarkup()}<svg class="rt-ball-track" viewBox="0 0 400 400" aria-hidden="true"><defs><radialGradient id="rt-ball-light" cx="30%" cy="25%"><stop stop-color="#fff"/><stop offset=".6" stop-color="#fff7e1"/><stop offset="1" stop-color="#aa9983"/></radialGradient></defs><ellipse class="rt-ball-shadow" cx="202" cy="14" rx="6" ry="4" fill="#000" opacity=".4"/><circle class="rt-ball" cx="200" cy="12" r="5" fill="url(#rt-ball-light)"/></svg></div>
+        <div class="rt-wheel-stage"><div class="rt-wheel-wrap">${wheelMarkup()}<svg class="rt-ball-track" viewBox="0 0 400 400" aria-hidden="true"><defs><radialGradient id="rt-ball-light" cx="30%" cy="25%"><stop stop-color="#fff"/><stop offset=".6" stop-color="#fff7e1"/><stop offset="1" stop-color="#aa9983"/></radialGradient></defs><ellipse class="rt-ball-shadow" cx="202" cy="14" rx="6" ry="4" fill="#000" opacity=".4"/><circle class="rt-ball" cx="200" cy="12" r="5" fill="url(#rt-ball-light)"/></svg></div></div>
         <div class="rt-result" role="status" aria-live="polite"><span class="rt-result-number">?</span><div><strong data-rt-result-title>Stół jest Twój</strong><span data-rt-result-text>Wybierz żeton i postaw na planszy.</span></div></div>
         <div class="rt-history"><span>OSTATNIE WYNIKI</span><div data-rt-history><small>Tu pojawi się historia Twoich rund.</small></div></div>
       </section>
@@ -55,7 +56,7 @@ export function mountRoulette(root, { player }) {
           <div class="rt-outside">${button('low', '1–18')}${button('even', 'Parzyste')}${button('red', '<i class="rt-diamond rt-red-diamond"></i><span class="rt-mobile-label">Czerwone</span>')}${button('black', '<i class="rt-diamond rt-black-diamond"></i><span class="rt-mobile-label">Czarne</span>')}${button('odd', 'Nieparzyste')}${button('high', '19–36')}</div>
         </div>
         <div class="rt-tools"><button data-rt-action="undo">↶ Cofnij</button><button data-rt-action="clear">Wyczyść stół</button><button data-rt-action="repeat">↻ Powtórz zakłady</button></div>
-        <div class="rt-slip" aria-label="Podsumowanie zakładów"><div class="rt-slip-title"><h3>Twoje zakłady</h3><span data-rt-bet-count>Brak zakładów</span></div><ul class="rt-bet-list" data-rt-bet-list></ul><div class="rt-slip-total"><span>Łączna stawka rundy</span><strong data-rt-total>0 <small>żetonów</small></strong></div></div>
+        <div class="rt-slip" aria-label="Podsumowanie zakładów"><div class="rt-slip-title"><h3>Twoje zakłady</h3><nav class="rt-bet-pages" aria-label="Strony zakładów"><button data-rt-action="bets-prev" aria-label="Poprzednie zakłady">‹</button><span data-rt-bet-count>Brak zakładów</span><button data-rt-action="bets-next" aria-label="Następne zakłady">›</button></nav></div><ul class="rt-bet-list" data-rt-bet-list></ul><div class="rt-slip-total"><span>Łączna stawka rundy</span><strong data-rt-total>0 <small>żetonów</small></strong></div></div>
         <p class="rt-message" role="status" aria-live="polite">Postaw żetony, aby rozpocząć rundę.</p>
         <button class="rt-spin" data-rt-action="spin" disabled><span>Zakręć kołem</span><span aria-hidden="true">↗</span></button>
         <p class="rt-footnote">Bez wpłat i wypłat. Żetony nie mają wartości pieniężnej.</p>
@@ -71,6 +72,9 @@ export function mountRoulette(root, { player }) {
 
   function renderBets() {
     const bets = rack.totals();
+    const entries = Object.entries(bets);
+    const pageSize = window.matchMedia('(max-width: 700px), (max-height: 600px)').matches ? 1 : 2;
+    betPage = Math.max(0, Math.min(betPage, Math.ceil(entries.length / pageSize) - 1));
     const total = stakeTotal(bets);
     root.querySelectorAll('[data-rt-bet]').forEach((node) => {
       const amount = bets[node.dataset.rtBet] || 0;
@@ -85,8 +89,10 @@ export function mountRoulette(root, { player }) {
       node.disabled = spinning;
     });
     find('[data-rt-total]').innerHTML = `${format.format(total)} <small>żetonów</small>`;
-    find('[data-rt-bet-count]').textContent = Object.keys(bets).length ? `Obstawione pola: ${Object.keys(bets).length}` : 'Brak zakładów';
-    find('[data-rt-bet-list]').innerHTML = Object.entries(bets).map(([id, amount]) => {
+    find('[data-rt-bet-count]').textContent = entries.length ? `${betPage * pageSize + 1}–${Math.min((betPage + 1) * pageSize, entries.length)} / ${entries.length}` : 'Brak zakładów';
+    find('[data-rt-action="bets-prev"]').disabled = betPage === 0;
+    find('[data-rt-action="bets-next"]').disabled = (betPage + 1) * pageSize >= entries.length;
+    find('[data-rt-bet-list]').innerHTML = entries.slice(betPage * pageSize, (betPage + 1) * pageSize).map(([id, amount]) => {
       const denominations = rack.stack(id).reduce((counts, value) => { counts[value] = (counts[value] || 0) + 1; return counts; }, {});
       return `<li><div><strong>${BETS[id].label}</strong><small>${Object.entries(denominations).map(([value, count]) => `${count} × ${format.format(Number(value))}`).join(' · ')}</small></div><span>${format.format(amount)}</span><button data-rt-remove="${id}" aria-label="Zdejmij ostatni żeton: ${BETS[id].label}" ${spinning ? 'disabled' : ''}>−</button></li>`;
     }).join('') || '<li class="rt-slip-empty">Wybierz pola na planszy. Każdy zakład pojawi się tutaj osobno.</li>';
@@ -174,6 +180,9 @@ export function mountRoulette(root, { player }) {
     const target = event.target.closest('button');
     if (!target || !root.contains(target)) return;
     if (target.classList.contains('rt-rules-toggle')) { const rules = find('.rt-rules'); rules.hidden = !rules.hidden; target.setAttribute('aria-expanded', String(!rules.hidden)); return; }
+    if (target.dataset.rtAction === 'bets-prev' || target.dataset.rtAction === 'bets-next') {
+      betPage += target.dataset.rtAction === 'bets-prev' ? -1 : 1; renderBets(); return;
+    }
     if (spinning) return;
     if (target.dataset.rtRemove) { removeChip(target.dataset.rtRemove); return; }
     if (target.dataset.rtChip) {
@@ -204,6 +213,7 @@ export function mountRoulette(root, { player }) {
     }
   }, { signal: events.signal });
   renderBets();
+  window.addEventListener('resize', renderBets, { signal: events.signal });
 
   return () => {
     disposed = true;

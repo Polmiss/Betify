@@ -7,12 +7,31 @@ import { mountRoulette } from './games/roulette/roulette.js';
 import { mountBlackjack } from './games/blackjack.js';
 import { artwork } from './artwork.js';
 import { icon } from './icons.js';
+import { showGameHelp } from './game-help.js';
+import './game-viewport.css';
 
 const player = browserPlayer();
 const format = new Intl.NumberFormat('pl-PL');
 let cleanup;
+let closeHelp;
 document.querySelector('#app').innerHTML = `<header class="game-topbar"><a class="game-back" href="./">${icon('arrow')}<span>Lobby</span></a><a class="game-wordmark" href="./">betify<span>.</span></a><span class="game-mode">WIRTUALNA ROZGRYWKA</span><div class="game-page-wallet">${icon('coin')}<strong class="balance-value"></strong><button class="game-refill" aria-label="Dodaj 5 000 darmowych żetonów">+ 5k</button></div></header><main class="game-surface" id="game-content"></main><p class="game-page-notice" role="status" hidden></p>`;
 const surface = document.querySelector('#game-content');
+surface.addEventListener('click', (event) => {
+  const button = event.target.closest('.rt-rules-toggle, .bj-rules summary');
+  if (!button) return;
+  event.preventDefault(); event.stopPropagation();
+  closeHelp?.();
+  let pages;
+  if (button.matches('.rt-rules-toggle')) {
+    pages = [...surface.querySelector('.rt-rules').children].filter((node) => !node.matches('h3')).map((node) => node.outerHTML);
+  } else {
+    const rules = [...surface.querySelectorAll('.bj-rules li')];
+    pages = [];
+    for (let i = 0; i < rules.length; i += 2) pages.push(`<ul>${rules.slice(i, i + 2).map((node) => node.outerHTML).join('')}</ul>`);
+  }
+  button.setAttribute('aria-expanded', 'true');
+  closeHelp = showGameHelp('Zasady stołu', pages, () => button.setAttribute('aria-expanded', 'false'));
+}, true);
 function updateWallet() {
   document.querySelectorAll('.balance-value').forEach((node) => { node.textContent = format.format(player.getState().balance); });
   const notice = document.querySelector('.game-page-notice');
@@ -23,6 +42,7 @@ player.subscribe(updateWallet);
 document.querySelector('.game-refill').addEventListener('click', () => { player.credit(5000); });
 
 function render() {
+  closeHelp?.();
   cleanup?.(); cleanup = undefined;
   surface.className = 'game-surface';
   const id = location.hash.replace(/^#(?:game\/)?/, '') || 'roulette';
