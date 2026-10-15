@@ -3,6 +3,7 @@ import { games, categories, filterGames } from './catalog.js';
 import { createPlayerStore } from './store.js';
 import { icon } from './icons.js';
 import { artwork, heroArtwork } from './artwork.js';
+import { mountBlackjack } from './games/blackjack.js';
 
 const storage = { getItem: (key) => window.localStorage.getItem(key), setItem: (key, value) => window.localStorage.setItem(key, value) };
 const player = createPlayerStore(storage);
@@ -10,6 +11,7 @@ const view = { category: 'all', query: '', sort: 'recommended' };
 const number = new Intl.NumberFormat('pl-PL');
 let toastTimer;
 let previousFocus;
+let cleanupGame;
 
 document.querySelector('#app').innerHTML = `
   <a class="skip-link" href="#catalog">Przejdź do gier</a>
@@ -53,7 +55,7 @@ document.querySelector('#app').innerHTML = `
       </section>
 
       <section class="catalog" id="catalog" aria-labelledby="catalog-title">
-        <div class="section-heading"><div><div class="section-title"><span class="section-icon">${icon('grid')}</span><h2 id="catalog-title">Znajdź swoją grę</h2><span class="total-count" id="total-count">8</span></div><p>Od pierwszej karty do ostatniego obrotu. Co wybierasz?</p></div><div class="planned-note">${icon('clock')} Rozgrywki już wkrótce</div></div>
+        <div class="section-heading"><div><div class="section-title"><span class="section-icon">${icon('grid')}</span><h2 id="catalog-title">Znajdź swoją grę</h2><span class="total-count" id="total-count">8</span></div><p>Od pierwszej karty do ostatniego obrotu. Co wybierasz?</p></div><div class="planned-note">${icon('cards')} Blackjack już dostępny</div></div>
         <div class="catalog-controls"><div class="category-tabs" role="group" aria-label="Filtruj gry">${categories.map((category) => `<button class="category-tab ${category.id === 'all' ? 'active' : ''}" data-category="${category.id}" aria-pressed="${category.id === 'all'}">${icon(category.icon)} ${category.name}</button>`).join('')}<button class="category-tab" data-category="favorites" aria-pressed="false">${icon('heart')} Ulubione</button></div><label class="sort-label"><span class="sr-only">Sortuj gry</span><select id="sort"><option value="recommended">Polecane</option><option value="name">Nazwa A–Z</option></select>${icon('chevron')}</label></div>
         <div class="game-grid" id="game-grid"></div><p class="sr-only" id="result-announcement" role="status" aria-live="polite"></p>
       </section>
@@ -84,7 +86,7 @@ function renderGames() {
   document.querySelector('#game-grid').innerHTML = filtered.length ? filtered.map((game) => `
     <article class="game-card ${game.color}">
       <div class="game-visual"><button class="art-button" data-game="${game.id}" tabindex="-1" aria-hidden="true">${artwork(game.id)}</button>${game.tag ? `<span class="game-tag">${game.tag === 'Instant' ? icon('bolt') : icon('cards')}${game.tag}</span>` : ''}<button class="favorite-button ${favorites.includes(game.id) ? 'selected' : ''}" data-favorite="${game.id}" aria-label="${favorites.includes(game.id) ? 'Usuń' : 'Dodaj'} ${game.name} ${favorites.includes(game.id) ? 'z ulubionych' : 'do ulubionych'}" aria-pressed="${favorites.includes(game.id)}">${icon('heart')}</button><span class="art-label">BETIFY ORIGINALS</span></div>
-      <div class="game-info"><div class="game-heading"><h3><button data-game="${game.id}">${game.name}</button></h3><span class="game-open" aria-hidden="true">${icon('diagonal')}</span></div><p>${game.label}</p><div class="game-card-bottom"><span>${categories.find((category) => category.id === game.category).name}</span><span class="coming-soon"><i></i>Wkrótce</span></div></div>
+      <div class="game-info"><div class="game-heading"><h3><button data-game="${game.id}">${game.name}</button></h3><span class="game-open" aria-hidden="true">${icon('diagonal')}</span></div><p>${game.label}</p><div class="game-card-bottom"><span>${categories.find((category) => category.id === game.category).name}</span><span class="coming-soon ${game.status === 'playable' ? 'mint' : ''}"><i></i>${game.status === 'playable' ? 'Zagraj teraz' : 'Wkrótce'}</span></div></div>
     </article>`).join('') : `<div class="empty-state">${icon(view.category === 'favorites' ? 'heart' : 'search')}<h3>${view.category === 'favorites' && !view.query ? 'Twoje typy mają tu swoje miejsce' : 'Nie znaleźliśmy takiej gry'}</h3><p>${view.category === 'favorites' && !view.query ? 'Kliknij serce na karcie gry, aby dodać ją do ulubionych.' : 'Spróbuj innej nazwy lub zobacz wszystkie kategorie.'}</p><button class="button button-secondary" data-action="clear-filters">Zobacz wszystkie gry ${icon('arrow')}</button></div>`;
 }
 
@@ -111,6 +113,9 @@ function setCategory(category, scroll = false) {
 }
 
 function openDialog(content) {
+  cleanupGame?.();
+  cleanupGame = undefined;
+  dialog.classList.remove('blackjack-dialog');
   if (document.body.classList.contains('menu-open')) closeMenu(true);
   previousFocus = document.activeElement;
   document.querySelector('#dialog-content').innerHTML = content;
@@ -120,7 +125,14 @@ function openDialog(content) {
 function openGame(id) {
   const game = games.find((item) => item.id === id);
   if (!game) return;
-  // Future playable modules can be mounted here. Hash routing works on Pages.
+  if (id === 'blackjack') {
+    if (cleanupGame) return;
+    openDialog('');
+    dialog.classList.add('blackjack-dialog');
+    cleanupGame = mountBlackjack(document.querySelector('#dialog-content'), player);
+    document.querySelector('#bj-deal').focus();
+    return;
+  }
   openDialog(`<div class="dialog-art ${game.color}">${artwork(game.id, 'dialog')}</div><div class="dialog-body"><span class="eyebrow">${categories.find((category) => category.id === game.category).name} · ${game.players}</span><h2 id="dialog-title">${game.name}<span class="mint">.</span></h2><p class="dialog-tagline">${game.tagline}</p><p>${game.description}</p><h3>Jak to działa?</h3><ol class="rules">${game.rules.map((rule) => `<li>${rule}</li>`).join('')}</ol><div class="game-status">${icon('clock')}<div><strong>Ten stół dopiero się szykuje</strong><span>Rozgrywka pojawi się w kolejnej aktualizacji.</span></div></div><button class="button button-primary full-width" data-action="favorite-current" data-id="${game.id}">${icon('heart')}<span>${player.getState().favorites.includes(game.id) ? 'Usuń z ulubionych' : 'Dodaj do ulubionych'}</span></button><small class="dialog-footnote">Wyłącznie wirtualne żetony. Bez wpłat i wypłat.</small></div>`);
 }
 
@@ -129,7 +141,7 @@ function openWallet() {
 }
 
 function openAbout() {
-  openDialog(`<div class="dialog-body about-dialog"><span class="dialog-symbol">${icon('shield')}</span><span class="eyebrow">MAŁY PROJEKT. DUŻO ZABAWY.</span><h2 id="dialog-title">Poznaj Betify<span class="mint">.</span></h2><p>Betify to demonstracyjna symulacja kasyna. Miejsce, w którym będziemy odkrywać klasyczne gry karciane, stołowe i autorskie gry instant.</p><div class="about-item">${icon('coin')}<div><strong>Wirtualna pula na start</strong><span>10 000 darmowych żetonów. Możesz uzupełniać je w portfelu.</span></div></div><div class="about-item">${icon('heart')}<div><strong>Twoje lobby, Twoje ulubione</strong><span>Saldo i ulubione zapisujemy lokalnie. Bez konta i logowania.</span></div></div><div class="about-item">${icon('clock')}<div><strong>Budujemy krok po kroku</strong><span>To pierwsza wersja lobby. Właściwe gry dodamy w kolejnych aktualizacjach.</span></div></div><p class="about-note">Nie można wpłacać ani wypłacać pieniędzy. Żetony nie podlegają wymianie i nie mają wartości pieniężnej.</p><button class="button button-primary full-width" data-action="close-dialog">Wracam do lobby ${icon('arrow')}</button></div>`);
+  openDialog(`<div class="dialog-body about-dialog"><span class="dialog-symbol">${icon('shield')}</span><span class="eyebrow">MAŁY PROJEKT. DUŻO ZABAWY.</span><h2 id="dialog-title">Poznaj Betify<span class="mint">.</span></h2><p>Betify to demonstracyjna symulacja kasyna. Miejsce, w którym będziemy odkrywać klasyczne gry karciane, stołowe i autorskie gry instant.</p><div class="about-item">${icon('coin')}<div><strong>Wirtualna pula na start</strong><span>10 000 darmowych żetonów. Możesz uzupełniać je w portfelu.</span></div></div><div class="about-item">${icon('heart')}<div><strong>Twoje lobby, Twoje ulubione</strong><span>Saldo i ulubione zapisujemy lokalnie. Bez konta i logowania.</span></div></div><div class="about-item">${icon('cards')}<div><strong>Blackjack już przy stole</strong><span>Zagraj przeciwko krupierowi. Kolejne gry dodamy w następnych aktualizacjach.</span></div></div><p class="about-note">Nie można wpłacać ani wypłacać pieniędzy. Żetony nie podlegają wymianie i nie mają wartości pieniężnej.</p><button class="button button-primary full-width" data-action="close-dialog">Wracam do lobby ${icon('arrow')}</button></div>`);
 }
 
 function route() {
@@ -142,6 +154,9 @@ function route() {
 window.addEventListener('hashchange', route);
 dialog.addEventListener('click', (event) => { if (event.target === dialog) { const rect = dialog.getBoundingClientRect(); if (event.clientX < rect.left || event.clientX > rect.right || event.clientY < rect.top || event.clientY > rect.bottom) dialog.close(); } });
 dialog.addEventListener('close', () => {
+  cleanupGame?.();
+  cleanupGame = undefined;
+  dialog.classList.remove('blackjack-dialog');
   if (location.hash.startsWith('#game/')) history.replaceState(null, '', `${location.pathname}${location.search}#catalog`);
   if (previousFocus?.isConnected) previousFocus.focus();
 });

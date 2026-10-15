@@ -1,6 +1,6 @@
 # Betify
 
-Demonstracyjna symulacja kasyna z wirtualnym saldem. Bez wpłat, wypłat i prawdziwych pieniędzy. Pierwsza wersja zawiera lobby; same rozgrywki będziemy dodawać osobno.
+Demonstracyjna symulacja kasyna z wirtualnym saldem. Bez wpłat, wypłat i prawdziwych pieniędzy. Lobby zawiera już grywalnego blackjacka przeciwko krupierowi.
 
 ## Uruchomienie
 
@@ -24,9 +24,18 @@ npm run preview
 - Ulubione oraz saldo 10 000 żetonów zapisane w `localStorage`.
 - Darmowe uzupełnianie i reset salda, z obsługą niedostępnego zapisu w przeglądarce.
 - Opisy i skrócone zasady gier, dostępne także przez `#game/blackjack` itp.
+- Blackjack: dobieranie, pasowanie, podwojenie, historia pięciu rund i wspólny portfel lobby.
 - Klawiaturowa nawigacja, natywne okna dialogowe i ograniczone animacje dla `prefers-reduced-motion`.
 
-Gry są oznaczone jako **Wkrótce**. Nie ma jeszcze silników rozgrywki, płatności, kont użytkowników ani backendu. Saldo jest lokalne i może być edytowane przez użytkownika — to celowe dla demonstracyjnego projektu. Czcionki pobierane są z Google Fonts; przy braku dostępu używany jest font systemowy. Grafiki są lokalne.
+Blackjack jest oznaczony jako **Zagraj teraz**, a pozostałe gry jako **Wkrótce**. Nie ma płatności, kont użytkowników ani backendu. Saldo jest lokalne i może być edytowane przez użytkownika — to celowe dla demonstracyjnego projektu. Czcionki pobierane są z Google Fonts; przy braku dostępu używany jest font systemowy. Grafiki są lokalne.
+
+## Blackjack
+
+Kliknij Blackjack w lobby lub otwórz `#game/blackjack`. Wybierz parzystą stawkę od 10 do 5 000 żetonów. As ma wartość 1 lub 11, figury 10. Blackjack na dwóch kartach daje zysk 3:2, zwykła wygrana 1:1, remis zwraca stawkę. Parzyste stawki pozwalają wypłacać 3:2 w całkowitych żetonach.
+
+Gra korzysta z sześciu talii tasowanych przez Web Crypto (ponowne tasowanie przed rundą, gdy zostaje mniej niż 60 kart). Krupier stoi na każdym 17, również miękkim. Można podwoić pierwsze dwie karty przy wystarczającym saldzie: dodatkowa stawka, dokładnie jedna karta i automatyczny pas. Bez podziału par, ubezpieczenia i poddania.
+
+Zamknięcie okna gry, Escape albo przejście do innej sekcji automatycznie pasuje i rozlicza otwartą rundę. Odświeżenie lub zamknięcie całej strony podczas rundy powoduje utratę postawionych żetonów; aktywne rozdanie nie jest zapisywane. Historia rund dotyczy aktualnego otwarcia stołu. Saldo jest zapisywane po każdej operacji. Darmowe uzupełnienie znajduje się w portfelu lobby.
 
 ## Struktura i kolejne gry
 
@@ -38,15 +47,20 @@ src/
   store.js      # saldo, ulubione i zapis lokalny
   artwork.js    # autorskie grafiki wektorowe
   icons.js      # ikony interfejsu
+  games/
+    blackjack-engine.js # reguły, tasowanie i rozliczanie żetonów
+    blackjack.js        # interfejs stołu i cykl montażu/sprzątania
+    blackjack.css       # responsywny stół i karty
 tests/
   store.test.js # reguły portfela, odporność zapisu i filtrowanie
+  blackjack.test.js # scenariusze rozgrywki i symulacja 500 rund
 ```
 
 Aby dodać grę:
 
 1. Dodaj jej metadane do `src/catalog.js` i ilustrację do `src/artwork.js`.
 2. Utwórz osobny moduł, np. `src/games/blackjack.js`, z funkcją montującą rozgrywkę i sprzątającą po wyjściu.
-3. W funkcji `openGame` w `src/main.js` podłącz moduł. Obecnie otwiera ona opis planowanej gry.
+3. W funkcji `openGame` w `src/main.js` podłącz moduł i ustaw `status: 'playable'` w katalogu. Blackjack jest gotowym przykładem; pozostałe gry otwierają opis. Zwrócona funkcja sprzątająca powinna rozliczyć aktywną rundę i odpiąć zdarzenia.
 4. Korzystaj z API `player.debit(amount)`, `player.credit(amount)` i `player.subscribe(listener)`; kwoty są całkowitymi żetonami. Obie operacje zwracają `false` przy niedopuszczalnej kwocie.
 5. Utrzymaj linki przez hash. Dzięki temu bezpośrednie wejście i odświeżenie działają na hostingu statycznym bez reguł serwera.
 
