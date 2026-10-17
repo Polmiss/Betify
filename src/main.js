@@ -54,7 +54,7 @@ document.querySelector('#app').innerHTML = `
       </section>
 
       <section class="catalog" id="catalog" aria-labelledby="catalog-title">
-        <div class="section-heading"><div><div class="section-title"><span class="section-icon">${icon('grid')}</span><h2 id="catalog-title">Znajdź swoją grę</h2><span class="total-count" id="total-count">8</span></div><p>Twoja siódemka gier. Plus Plinko jako honorable mention.</p></div><div class="planned-note">${icon('cards')} High Low, Blackjack i Roulette dostępne</div></div>
+        <div class="section-heading"><div><div class="section-title"><span class="section-icon">${icon('grid')}</span><h2 id="catalog-title">Znajdź swoją grę</h2><span class="total-count" id="total-count">8</span></div><p>Twoja siódemka gier. Plus Plinko jako honorable mention.</p></div><div class="planned-note">${icon('cards')} Wszystkie 8 gier dostępne</div></div>
         <div class="catalog-controls"><div class="category-tabs" role="group" aria-label="Filtruj gry">${categories.map((category) => `<button class="category-tab ${category.id === 'all' ? 'active' : ''}" data-category="${category.id}" aria-pressed="${category.id === 'all'}">${icon(category.icon)} ${category.name}</button>`).join('')}<button class="category-tab" data-category="favorites" aria-pressed="false">${icon('heart')} Ulubione</button></div><label class="sort-label"><span class="sr-only">Sortuj gry</span><select id="sort"><option value="recommended">Polecane</option><option value="name">Nazwa A–Z</option></select>${icon('chevron')}</label></div>
         <div class="game-grid" id="game-grid"></div><p class="sr-only" id="result-announcement" role="status" aria-live="polite"></p>
       </section>
@@ -214,3 +214,4 @@ document.addEventListener('click', (event) => {
 updatePlayer();
 setCategory('all');
 route();
+

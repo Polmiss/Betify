@@ -38,7 +38,7 @@ export const games = [
       "Sprawdź szansę i potencjalny mnożnik.",
       "Wylosuj wynik i porównaj go ze swoim wyborem."
     ],
-    "status": "planned"
+    "status": "playable"
   },
   {
     "id": "high-low",
@@ -72,7 +72,7 @@ export const games = [
       "Odkrywaj kolejne pola z diamentami.",
       "Zakończ rundę przed trafieniem na minę, aby zachować wygraną."
     ],
-    "status": "planned"
+    "status": "playable"
   },
   {
     "id": "roulette",
@@ -123,7 +123,7 @@ export const games = [
       "Przewiduj wzrost albo spadek fikcyjnego kursu.",
       "Sprawdź kierunek następnego ruchu wykresu."
     ],
-    "status": "planned"
+    "status": "playable"
   },
   {
     "id": "goal",
@@ -140,7 +140,7 @@ export const games = [
       "Oddaj strzał i sprawdź reakcję bramkarza.",
       "Zdobywaj gole i zdecyduj, kiedy zakończyć serię."
     ],
-    "status": "planned"
+    "status": "playable"
   },
   {
     "id": "plinko",
@@ -157,7 +157,7 @@ export const games = [
       "Puść kulkę z góry planszy.",
       "Pole, na którym zatrzyma się kulka, określa wynik rundy."
     ],
-    "status": "planned"
+    "status": "playable"
   }
 ];
 
@@ -171,3 +171,4 @@ export function filterGames({ category = 'all', query = '', favorites = [], sort
   );
   return sort === 'name' ? filtered.sort((a, b) => a.name.localeCompare(b.name, 'pl')) : filtered;
 }
+
