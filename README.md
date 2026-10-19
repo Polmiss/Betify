@@ -30,12 +30,11 @@ npm run preview
 
 Wszystkie osiem gier jest oznaczonych jako **Zagraj teraz**. Nie ma płatności, kont użytkowników ani backendu. Saldo i ulubione są lokalne, synchronizowane między kartami i mogą być edytowane przez użytkownika. To celowe dla demonstracyjnego projektu. Czcionki pobierane są z Google Fonts; przy braku dostępu używany jest font systemowy. Grafiki są lokalne.
 
-## Dice, Mines, Trader, Goal i Plinko
+## Dice, Trader, Goal i Plinko
 
 Bezpośrednie adresy: `game.html#dice`, `#mines`, `#trader`, `#goal`, `#plinko`. Każda gra ma osobną planszę, historię ośmiu ostatnich rund, wybór stawki, zasady i obsługę ograniczonych animacji. Na małym ekranie obszar gry przewija się, aby wszystkie przyciski pozostały dostępne.
 
 - **Dice:** próg 2–98 i zakład „Poniżej” lub „Od progu”. Losowanie jednej z 10 000 wartości od 0,00 do 99,99. Równość wygrywa tylko w drugim kierunku. Mnożnik to `0.99 / szansa`; przed rzutem widać szansę i potencjalną wypłatę.
-- **Mines:** plansza 5×5, od 1 do 24 min. Jednorazowo tasowany układ pozostaje stały przez rundę. Po każdym diamencie można odebrać żetony. Mnożnik to `0.99 / iloczyn kolejnych szans na bezpieczne pole` (losowanie bez zwracania). Mina traci całą serię. Wszystkie bezpieczne pola lub limit wypłaty automatycznie kończą rundę. Nieodkryte miny ujawniają się dopiero po jej zakończeniu.
 - **Trader:** fikcyjny kurs i dwa niezależne kierunki o szansie 50%. Trafienie wypłaca `1.98×`; wielkość ruchu 1–5% nie wpływa na wypłatę. Wykres nie korzysta z rzeczywistych notowań i nie przewiduje kolejnych wyników.
 - **Goal:** własny demonstracyjny wariant z pięcioma miejscami strzału. Bramkarz losuje jedno z nich z szansą 20%; zgodność oznacza obronę, a pozostałe miejsca gola. Po trafieniu można odebrać żetony lub strzelać dalej. Mnożnik po `n` golach to `0.99 / 0.8^n`. Obrona traci serię, a 10 goli kończy ją automatycznie.
 - **Plinko:** 12 niezależnych kroków w lewo lub w prawo (po 50%), 13 pól końcowych. Poziomy ryzyka: niski (0,7–8×) i wysoki (0,1–100×). Tabela mnożników jest widoczna na planszy i dostępna w rozwijanym zestawieniu. Środkowe pola są bardziej prawdopodobne niż skrajne. Animacja odpowiada wylosowanej ścieżce. Teoretyczny zwrot przed zaokrągleniem: około 98,13% / 98,05% dla niskiego / wysokiego ryzyka.
@@ -43,6 +42,20 @@ Bezpośrednie adresy: `game.html#dice`, `#mines`, `#trader`, `#goal`, `#plinko`.
 Stawki: 10–5 000 całkowitych żetonów. Wypłata zawiera stawkę i jest zaokrąglana w dół. Maksymalna wypłata: 1 000 000; maksymalny mnożnik serii: 1 000×. Obowiązuje też limit salda portfela. Gry jednorundowe rozliczają wynik przed animacją. Wyjście z aktywnego Mines/Goal automatycznie odbiera żetony po trafieniach albo zwraca stawkę przed pierwszym ruchem. Reset przerywa animację i ustawia dokładnie 10 000. Awaryjne zamknięcie przeglądarki może uniemożliwić rozliczenie serii. Nieudane uznanie portfela można ponowić bez ponownego pobierania stawki lub losowania wyniku.
 
 Losowanie używa Web Crypto z odrzucaniem niepełnego przedziału modulo. Kod: `src/games/instant/{engine,instant}.js` i `instant.css`. Testy: `tests/instant.test.js`, w tym granice Dice, kombinatoryka Mines, wszystkie kombinacje strzału i obrony, pola Plinko, limity, ponawianie wypłaty i symulacja 500 mieszanych rund.
+
+## Mines
+
+Otwórz `game.html#mines`. Podstawowa mechanika odpowiada powszechnemu wariantowi opisanemu w [oficjalnych zasadach Stake Mines](https://stake.com/casino/games/mines): plansza 5×5, od 1 do 24 min, odbiór po bezpiecznym odkryciu i przegrana po trafieniu miny. To autorska implementacja Betify na wirtualne żetony.
+
+- Układ min losowany jest jednokrotnie na początku rundy, przez częściowe tasowanie Fishera–Yatesa. Web Crypto z rejection sampling zapewnia losowanie pozycji bez obciążenia modulo i bez duplikatów. Pierwsze pole może być miną; układ nie jest zmieniany w reakcji na kliknięcia.
+- Miny i stawka są blokowane podczas rundy. Każde pole może zostać odkryte tylko raz. Losowe pole jest losowane spośród wszystkich zakrytych pól i również może zawierać minę.
+- Po `k` diamentach przy `m` minach mnożnik to `0.99 * C(25,k) / C(25-m,k)`. Wynika z odwrotności prawdopodobieństwa przetrwania `k` wyborów i jednorazowego współczynnika 0,99. Przed pierwszym odkryciem wyświetlane jest 1×, ale odbiór nie jest dostępny.
+- Szansa następnego diamentu: `(25-m-k)/(25-k)`. Ekran pokazuje tę szansę i następny mnożnik przed wyborem.
+- Stawki 10–5 000, wypłata zaokrąglana w dół do całych żetonów, maksymalna wypłata 1 000 000 oraz limit salda portfela. Limity i zaokrąglenia obniżają zwrot względem teoretycznego 99% bez limitów.
+- Odkrycie wszystkich diamentów lub osiągnięcie limitu wypłaty automatycznie rozlicza rundę. Po jej zakończeniu widać cały układ, z wyróżnieniem wybranych pól i trafionej miny.
+- Zwykłe wyjście odbiera bieżącą wygraną; przed pierwszym odkryciem zwraca stawkę. Reset kończy rundę i ustawia dokładnie 10 000. Awaryjne zamknięcie może uniemożliwić rozliczenie. Brak doładowań.
+
+Kod: `src/games/mines/{engine,mines}.js` i `mines.css`. Testy: `tests/mines.test.js`, w tym matematyka dla każdej liczby min, ukrywanie i stałość układu, pierwsza mina, losowe pole, duplikaty kliknięć, wszystkie diamenty, limity oraz rozliczenie przy zamknięciu.
 
 ## High Low
 
