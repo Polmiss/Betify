@@ -1,6 +1,8 @@
 import { createInstantGame, diceOffer, minesOffer, goalOffer, payoutFor, PLINKO_PAYTABLES, PLINKO_ROWS, GOAL_SHOTS } from './engine.js';
 import { showGameHelp } from '../../game-help.js';
 import './instant.css';
+import { animatePlinko, plinkoPeg, plinkoSlotX, PLINKO_BOARD } from './plinko-motion.js';
+import './plinko.css';
 
 const format = new Intl.NumberFormat('pl-PL');
 const number = (value, digits = 2) => value.toLocaleString('pl-PL', { minimumFractionDigits: digits, maximumFractionDigits: digits });
@@ -59,9 +61,13 @@ export function mountInstant(root, player, id) {
   }
   function plinkoBoard(state) {
     const risk = options().risk;
-    const pegs = Array.from({ length: PLINKO_ROWS }, (_, row) => Array.from({ length: row + 1 }, (_, column) => `<circle cx="${300 + (2 * column - row) * 20}" cy="${34 + row * 24}" r="3"/>`).join('')).join('');
-    const slots = PLINKO_PAYTABLES[risk].map((value, slot) => `<g class="ig-slot ${state.result?.slot === slot && state.result.risk === risk && !busy ? 'ig-landed' : ''}"><rect x="${42 + slot * 40}" y="333" width="36" height="31" rx="5"/><text x="${60 + slot * 40}" y="353">${number(value, value % 1 ? 1 : 0)}×</text></g>`).join('');
-    return `<svg viewBox="0 0 600 380" class="ig-plinko" role="img" aria-label="Plansza Plinko, 12 rzędów. Mnożniki od lewej: ${PLINKO_PAYTABLES[risk].join(', ')}"><g class="ig-pegs">${pegs}</g>${slots}<circle class="ig-ball" cx="0" cy="0" r="7" transform="translate(${state.result && !busy ? 60 + state.result.slot * 40 : 300} ${state.result && !busy ? 322 : 14})"/></svg>`;
+    const landed = state.result && state.result.risk === risk && !busy;
+    const pegs = Array.from({ length: PLINKO_ROWS }, (_, row) => Array.from({ length: row + 3 }, (_, column) => {
+      const { x, y } = plinkoPeg(row, column);
+      return `<g class="ig-peg" data-peg="${row}-${column}"><circle class="ig-peg-ring" cx="${x}" cy="${y}" r="8"/><circle class="ig-peg-core" cx="${x}" cy="${y}" r="3.6"/></g>`;
+    }).join('')).join('');
+    const slots = PLINKO_PAYTABLES[risk].map((value, slot) => `<g data-slot="${slot}" class="ig-slot ig-slot-tone-${Math.abs(slot - 6)} ${landed && state.result.slot === slot ? 'ig-landed' : ''}"><rect class="ig-slot-shadow" x="${plinkoSlotX(slot) - 19}" y="403" width="38" height="32" rx="6"/><rect class="ig-slot-face" x="${plinkoSlotX(slot) - 19}" y="398" width="38" height="32" rx="6"/><text x="${plinkoSlotX(slot)}" y="418">${number(value, value % 1 ? 1 : 0)}×</text></g>`).join('');
+    return `<svg viewBox="0 0 ${PLINKO_BOARD.width} ${PLINKO_BOARD.height}" class="ig-plinko-board" role="img" aria-label="Plansza Plinko, 12 rzędów. Mnożniki od lewej: ${PLINKO_PAYTABLES[risk].join(', ')}"><defs><radialGradient id="ig-plinko-ball"><stop offset="0" stop-color="#fff5d9"/><stop offset=".45" stop-color="#ffc4a0"/><stop offset="1" stop-color="#ff6177"/></radialGradient></defs><path class="ig-plinko-guides" d="M273 47 17 379Q12 389 25 389H615Q628 389 623 379L367 47"/><g class="ig-plinko-launcher"><path d="M305 10h30l-5 15h-20z"/><circle cx="320" cy="15" r="14"/></g><text class="ig-plinko-caption" x="32" y="27">12 RZĘDÓW</text><text class="ig-plinko-caption" x="608" y="27" text-anchor="end">${risk === 'high' ? 'WYSOKIE' : 'NISKIE'} RYZYKO</text><g class="ig-pegs">${pegs}</g>${slots}<g class="ig-ball-trail" aria-hidden="true">${Array.from({ length: 6 }, (_, i) => `<circle r="${5.2 - i * .55}" opacity="0"/>`).join('')}</g><g class="ig-ball" transform="translate(${landed ? plinkoSlotX(state.result.slot) : 320} ${landed ? PLINKO_BOARD.landingY : 15})"><circle class="ig-ball-glow" r="12"/><circle class="ig-ball-core" r="6.4"/><circle class="ig-ball-shine" cx="-1.7" cy="-2.2" r="1.7"/></g></svg>`;
   }
   function stage(state) {
     const playing = state.phase === 'playing';
@@ -145,17 +151,13 @@ export function mountInstant(root, player, id) {
       if (animate) {
         preview = before;
         render();
-        if (id === 'plinko' && !reducedMotion.matches) {
-          let rights = 0;
-          const frames = [{ transform: 'translate(300px, 14px)' }, ...after.result.path.map((step, index) => {
-            rights += step;
-            return { transform: `translate(${300 + (2 * rights - index - 1) * 20}px, ${46 + index * 24}px)` };
-          }), { transform: `translate(${60 + after.result.slot * 40}px, 322px)` }];
-          const ball = $('.ig-ball');
-          ball.removeAttribute('transform');
-          ballAnimation = ball.animate(frames, { duration: 1800, easing: 'linear', fill: 'forwards' });
+        if (id === 'plinko' && window.matchMedia('(max-width: 650px)').matches) {
+          $('.ig-arena').scrollIntoView({ block: 'start', behavior: reducedMotion.matches ? 'instant' : 'smooth' });
         }
-        if (!await wait(id === 'plinko' ? 1800 : id === 'goal' ? 650 : 450)) return;
+        if (id === 'plinko' && !reducedMotion.matches) {
+          ballAnimation = animatePlinko($('.ig-plinko-board'), after.result.path);
+          if (!await ballAnimation.finished) return;
+        } else if (!await wait(id === 'goal' ? 650 : 450)) return;
         ballAnimation?.cancel(); ballAnimation = undefined;
         preview = undefined;
       }

@@ -1,0 +1,33 @@
+.ig-root.ig-plinko{--ig-accent:#ffb89f;--ig-soft:#ffb89f12}
+.ig-plinko .ig-arena{background:radial-gradient(ellipse at 50% 25%,#25414b80,transparent 65%),#11232e;box-shadow:inset 0 1px 0 #ffffff07}
+.ig-plinko .ig-stage{padding:8px 0;position:relative}
+.ig-plinko .ig-plinko-board{display:block;width:100%;height:100%;min-height:0;max-height:100%;overflow:visible}
+.ig-plinko-guides{fill:none;stroke:#60889425;stroke-width:1;stroke-dasharray:3 8}
+.ig-plinko-launcher path{fill:#2b4652;stroke:#6e929e;stroke-width:1}
+.ig-plinko-launcher>circle{fill:#ffae8110;stroke:#ffae8125}
+.ig-plinko-caption{fill:#89a7b5;font:600 9px 'DM Sans',sans-serif;letter-spacing:1.7px}
+.ig-plinko .ig-peg-core{fill:#c6dce4;stroke:#effaff80;stroke-width:.65}
+.ig-peg-ring{fill:#ffe2ba;opacity:0;transform-box:fill-box;transform-origin:center}
+.ig-peg-hit .ig-peg-core{animation:ig-peg-flash .24s ease-out}
+.ig-peg-hit .ig-peg-ring{animation:ig-peg-ring .3s ease-out}
+.ig-plinko .ig-slot{--slot-color:#ffce61;--slot-shadow:#936326;transform-box:fill-box;transform-origin:center}
+.ig-plinko .ig-slot-tone-1{--slot-color:#ffb951;--slot-shadow:#97561e}.ig-plinko .ig-slot-tone-2{--slot-color:#ff9a51;--slot-shadow:#944720}.ig-plinko .ig-slot-tone-3{--slot-color:#ff7e61;--slot-shadow:#923a32}.ig-plinko .ig-slot-tone-4{--slot-color:#f85d79;--slot-shadow:#8f2d4b}.ig-plinko .ig-slot-tone-5{--slot-color:#eb498d;--slot-shadow:#84234e}.ig-plinko .ig-slot-tone-6{--slot-color:#d93896;--slot-shadow:#752454}
+.ig-plinko .ig-slot .ig-slot-shadow{fill:var(--slot-shadow);stroke:none}
+.ig-plinko .ig-slot .ig-slot-face{fill:var(--slot-color);stroke:#fff4;stroke-width:.6}
+.ig-plinko .ig-slot text{fill:#30232c;font:800 13px 'DM Sans',sans-serif}
+.ig-plinko .ig-slot.ig-landed .ig-slot-face{fill:#fff0ce;stroke:#fff;stroke-width:1.5;filter:drop-shadow(0 0 7px #ffd79290)}
+.ig-plinko .ig-slot.ig-landed text{fill:#332a22}
+.ig-slot-impact{animation:ig-slot-impact .36s ease-out}
+.ig-plinko .ig-ball{fill:none;filter:none;pointer-events:none}
+.ig-ball-core{fill:url(#ig-plinko-ball);stroke:#ffe6cd;stroke-width:.6}
+.ig-ball-glow{fill:#ff9562;opacity:.12;filter:blur(3px)}
+.ig-ball-shine{fill:#fff8e8;opacity:.9}
+.ig-ball-trail{fill:#ffc2a1;pointer-events:none}
+.ig-plinko .ig-controls>.ig-play{background:#ffb89f;color:#30231e;border-color:#ffb89f;box-shadow:0 4px 0 #925741}
+.ig-plinko .ig-controls>.ig-play:not(:disabled):hover{background:#ffcbb9}
+.ig-plinko .ig-message{font-variant-numeric:tabular-nums}
+@keyframes ig-peg-flash{0%,20%{fill:#fff4d8;filter:drop-shadow(0 0 5px #ffd094)}100%{fill:#c6dce4;filter:none}}
+@keyframes ig-peg-ring{0%{opacity:.7;transform:scale(.6)}100%{opacity:0;transform:scale(1.8)}}
+@keyframes ig-slot-impact{0%,100%{transform:translateY(0)}28%{transform:translateY(5px)}60%{transform:translateY(-2px)}}
+@media(max-width:650px){.ig-plinko .ig-stage{min-height:0;aspect-ratio:640/452;padding:6px 0}.ig-plinko .ig-arena{padding:12px 8px}.ig-plinko .ig-plinko-board{height:auto;flex:1}.ig-plinko .ig-message{min-height:44px;padding-top:10px;font-size:11px}.ig-plinko .ig-history{padding-top:8px}}
+@media(prefers-reduced-motion:reduce){.ig-plinko .ig-ball-glow,.ig-plinko .ig-ball-trail{display:none}}
