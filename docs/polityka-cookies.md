@@ -1,6 +1,6 @@
 # Polityka cookies i pamięci lokalnej Betify
 
-Wersja bez danych administratora z 17 października 2026 r.
+Wersja bez danych administratora z 20 października 2026 r.
 
 > Dokument opisuje obecny kod Betify. Nie zawiera danych administratora ani nie potwierdza wdrożenia mechanizmu zgód. Ograniczenia tej wersji opisano w Polityce prywatności i uwagach do publikacji.
 
@@ -31,6 +31,8 @@ Kod Betify nie ustawia własnych plików cookies i nie zawiera narzędzi reklamy
 | Czas przechowywania | Bez terminu wygaśnięcia ustawionego przez aplikację; do usunięcia danych lub ich wyczyszczenia przez przeglądarkę. |
 | Przesyłanie przez aplikację | Kod Betify nie wysyła zawartości tego wpisu do administratora ani do zewnętrznej bazy graczy. |
 
+Osobny wpis `betify:cookie-notice:v1` przechowuje wartość `1` po kliknięciu „Rozumiem” w powiadomieniu o cookies i pamięci lokalnej. Zapobiega ponownemu wyświetlaniu komunikatu, również na stronach gier i w innych kartach. Pozostaje do usunięcia danych witryny; aplikacja nie wysyła go na serwer. Jeśli zapis jest niedostępny, komunikat można zamknąć tylko w bieżącej karcie. Szczegóły można ponownie otworzyć przez „Cookies i prywatność” w stopce lobby lub „Cookies” na górnym pasku gry.
+
 Pamięć ta jest przypisana do pochodzenia strony, czyli kombinacji protokołu, hosta i portu, a nie wyłącznie do ścieżki `/Betify/`. Inne aplikacje uruchomione z tego samego pochodzenia mogą technicznie mieć dostęp do tej przestrzeni. Nie należy zapisywać w niej danych poufnych.
 
 Bieżąca rozgrywka i historia ostatnich wyników są utrzymywane osobno w pamięci danej gry; nie są zawartością tego trwałego wpisu. Pamięć podręczna przeglądarki może również zachowywać pliki strony i czcionki zgodnie z ustawieniami przeglądarki oraz nagłówkami serwera.
@@ -42,6 +44,8 @@ Art. 399 Prawa komunikacji elektronicznej przewiduje uprzednią informację i zg
 Trwałe zapamiętywanie ulubionych i zachowywanie salda między wizytami trzeba ocenić osobno od obsługi bieżącej rozgrywki. Jeżeli zapis nie jest objęty wyjątkiem, wymaga uprzedniej zgody; samo czytanie polityki lub dalsze przeglądanie strony nie jest opisywanym tutaj mechanizmem jej udzielenia.
 
 W obecnej wersji Betify nie ma panelu zgód ani przełącznika trwałego zapisu. Odczyt i zapis odbywają się w sposób opisany w punkcie 3. Możesz zarządzać danymi przez ustawienia przeglądarki opisane w punkcie 6; nie oznacza to jednak, że wdrożono uprzedni wybór dla funkcji wymagających zgody.
+
+Powiadomienie „Cookies i pamięć lokalna” ma charakter informacyjny. Przycisk „Rozumiem” zamyka komunikat i zapamiętuje jego zamknięcie; nie zmienia działania zapisu salda ani ulubionych i nie jest panelem zgód.
 
 ## 5. Usługi zewnętrzne
 
@@ -58,7 +62,7 @@ Betify nie wdraża cookies reklamowych ani analitycznych w kodzie aplikacji. Coo
 3. Usuń **dane witryny / pamięć lokalną**, a nie tylko historię przeglądania lub same cookies. Nazwy opcji zależą od przeglądarki.
 4. Przy kolejnym uruchomieniu bez zapisanego stanu aplikacja pokaże początkowe 10 000 żetonów i pustą listę ulubionych.
 
-Usunięcie danych całego pochodzenia może objąć także inne aplikacje pod tą samą domeną. Jeśli przeglądarka pozwala usuwać pojedyncze wpisy, dla Betify chodzi o `betify:player:v1`.
+Usunięcie danych całego pochodzenia może objąć także inne aplikacje pod tą samą domeną. Jeśli przeglądarka pozwala usuwać pojedyncze wpisy, dla Betify chodzi o `betify:player:v1` i `betify:cookie-notice:v1`.
 
 **Przycisk „Resetuj saldo” nie usuwa danych witryny.** Ustawia saldo na 10 000, zachowuje ulubione i zapisuje te wartości ponownie.
 

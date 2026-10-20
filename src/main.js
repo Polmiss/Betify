@@ -1,5 +1,6 @@
 import './style.css';
 import './theme.css';
+import { mountCookieNotice } from './cookie-notice.js';
 import { games, categories, filterGames } from './catalog.js';
 import { browserPlayer } from './player-session.js';
 import { icon } from './icons.js';
@@ -60,7 +61,7 @@ document.querySelector('#app').innerHTML = `
       </section>
 
       <section class="bottom-banner"><span class="banner-symbol" aria-hidden="true">♧</span><div><h2>Cała frajda. Żadnych prawdziwych pieniędzy.</h2><p>Betify to Twoja przestrzeń do poznawania gier. Żetony są wirtualne, a zabawa jest po Twojemu.</p></div><span class="fun-badge">JUST FOR FUN ${icon('shield')}</span></section>
-      <footer><a class="footer-brand" href="#">betify<span>.</span></a><span>Mała przerwa. Dobra rozgrywka.</span><button class="text-button" data-action="about">O projekcie ${icon('diagonal')}</button><span class="footer-copyright">© ${new Date().getFullYear()} Betify · Projekt demonstracyjny</span></footer>
+      <footer><a class="footer-brand" href="#">betify<span>.</span></a><span>Mała przerwa. Dobra rozgrywka.</span><button class="text-button" data-action="about">O projekcie ${icon('diagonal')}</button><button class="text-button" data-cookie-settings>Cookies i prywatność</button><span class="footer-copyright">© ${new Date().getFullYear()} Betify · Projekt demonstracyjny</span></footer>
     </main>
   </div>
   <dialog id="dialog" aria-labelledby="dialog-title"><button class="dialog-close icon-button" aria-label="Zamknij okno">${icon('close')}</button><div id="dialog-content"></div></dialog>
@@ -176,7 +177,7 @@ document.addEventListener('keydown', (event) => {
     if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last.focus(); }
     else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first.focus(); }
   }
-  if (event.key === '/' && !dialog.open && !/INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName) && !document.activeElement.isContentEditable) { event.preventDefault(); document.querySelector('#search').focus(); }
+  if (event.key === '/' && !document.querySelector('dialog[open]') && !/INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName) && !document.activeElement.isContentEditable) { event.preventDefault(); document.querySelector('#search').focus(); }
 });
 document.querySelector('#search').addEventListener('input', (event) => { view.query = event.target.value; renderGames(); });
 document.querySelector('#sort').addEventListener('change', (event) => { view.sort = event.target.value; renderGames(); });
@@ -214,4 +215,5 @@ document.addEventListener('click', (event) => {
 updatePlayer();
 setCategory('all');
 route();
+mountCookieNotice();
 

@@ -1,6 +1,6 @@
 # Polityka prywatności Betify
 
-Wersja bez danych administratora z 17 października 2026 r.
+Wersja bez danych administratora z 20 października 2026 r.
 
 > Dokument opisuje działanie Betify. W tej wersji pominięto tożsamość i kontakt do administratora, dlatego nie stanowi pełnej informacji wymaganej przez art. 13 RODO. Nie potwierdza również wdrożenia mechanizmu zgód.
 
@@ -13,6 +13,8 @@ Polityka dotyczy serwisu Betify — demonstracyjnej aplikacji z grami na wirtual
 ### Informacje o rozgrywce zapisane na urządzeniu
 
 Betify zapisuje w pamięci lokalnej przeglądarki (`localStorage`) saldo wirtualnych żetonów oraz identyfikatory gier dodanych do ulubionych. Wykorzystuje do tego wpis `betify:player:v1`.
+
+Osobny wpis `betify:cookie-notice:v1` zapamiętuje zamknięcie powiadomienia „Cookies i pamięć lokalna”. Kod aplikacji nie wysyła tej informacji na serwer. Przycisk „Rozumiem” zamyka informację, bez zmiany ustawień zapisu salda i ulubionych.
 
 Kod aplikacji nie wysyła tych informacji do administratora ani do centralnej bazy graczy. Nie zapisuje w tym wpisie imienia, nazwiska, adresu e-mail ani historii płatności. Wyniki ostatnich rund i trwające rozdania są przechowywane w pamięci bieżącej gry, a nie jako trwała historia konta.
 
@@ -55,6 +57,7 @@ Opis konfiguracji projektu nie potwierdza konkretnego miejsca przetwarzania wszy
 ## 6. Jak długo informacje są przechowywane
 
 - **Saldo i ulubione:** aplikacja nie ustawia terminu wygaśnięcia wpisu `localStorage`. Dane pozostają do usunięcia danych witryny, wyczyszczenia profilu przeglądarki lub usunięcia ich przez przeglądarkę. Prywatny tryb przeglądania może usuwać je wcześniej. Dalsza gra lub zmiana ulubionych ponownie zapisuje dane.
+- **Zamknięcie powiadomienia:** do usunięcia wpisu `betify:cookie-notice:v1` lub danych witryny przez użytkownika albo przeglądarkę.
 - **Bieżąca gra i historia ostatnich rund:** do zamknięcia, przeładowania lub ponownego zainicjowania danej gry, z zastrzeżeniem mechanizmów przywracania kart przez przeglądarkę. Saldo jest aktualizowane osobno w pamięci lokalnej.
 - **Dane przetwarzane przez GitHub i Google:** okresy zależą od celu i zasad dostawcy. Betify nie ustawia czasu przechowywania ich logów. Obowiązujące informacje są dostępne w politykach dostawców; nie deklarujemy niepotwierdzonej liczby dni.
 

@@ -1,0 +1,21 @@
+.cookie-notice{position:fixed;z-index:150;inset:auto 20px max(20px,env(safe-area-inset-bottom));max-width:920px;margin-inline:auto;display:flex;align-items:center;gap:24px;padding:22px 24px;border:1px solid #52644e;border-radius:16px;background:#1a251f;box-shadow:0 14px 60px #0009;color:#f0f6ed}
+.cookie-notice[hidden]{display:none}
+.cookie-copy h2,.cookie-details h2{font-family:Manrope,sans-serif;font-size:17px;line-height:1.4;margin:0 0 7px;letter-spacing:-.3px}
+.cookie-copy p{font-size:12px;line-height:1.7;color:#c1cebf;margin:0}
+.cookie-actions{display:flex;align-items:center;gap:10px;flex-shrink:0}
+.cookie-primary,.cookie-secondary{min-height:42px;padding:10px 15px;border-radius:8px;font:600 12px/1.4 'DM Sans',sans-serif;cursor:pointer}
+.cookie-primary{background:#b8f575;color:#1c3014;border:1px solid #b8f575}
+.cookie-primary:hover{background:#ccff97}
+.cookie-secondary{border:1px solid #61725b;background:transparent;color:#e0eadb}
+.cookie-secondary:hover{background:#2b3b2d}
+.cookie-notice button:focus-visible,.cookie-details :is(a,button):focus-visible,[data-cookie-settings]:focus-visible{outline:2px solid #b8f575;outline-offset:4px}
+.cookie-details{width:min(560px,calc(100% - 32px));max-height:calc(100dvh - 32px);margin:auto;padding:28px;background:#1a251f;border-color:#52644e}
+.cookie-details h2{font-size:23px;margin-bottom:16px}
+.cookie-details p,.cookie-details dd{font-size:13px;line-height:1.75;color:#c1cebf;margin:0 0 16px}
+.cookie-details dt{font-size:13px;font-weight:700;color:#eef5e9;margin-bottom:5px}
+.cookie-details code{font-size:12px;overflow-wrap:anywhere;color:#dfedcf}
+.cookie-details nav{display:flex;flex-wrap:wrap;gap:12px 20px;margin:20px 0}
+.cookie-details a{font-size:12px;color:#b8f575;text-decoration:underline;text-underline-offset:3px}
+.cookie-details::backdrop{background:#060c08bb;backdrop-filter:blur(5px)}
+.game-cookie-settings{flex-shrink:0;color:#c1cebf;font-size:11px;padding:6px 0;text-decoration:underline;text-underline-offset:3px}
+@media(max-width:650px){.cookie-notice{inset-inline:12px;bottom:max(12px,env(safe-area-inset-bottom));padding:18px;gap:15px;flex-direction:column;align-items:stretch;max-height:calc(100dvh - 24px);overflow:auto}.cookie-copy h2{font-size:16px}.cookie-actions{justify-content:flex-end;flex-wrap:wrap}.cookie-details{padding:23px}.game-page .game-topbar{gap:10px}.game-cookie-settings{font-size:10px}}

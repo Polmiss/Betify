@@ -12,12 +12,13 @@ import { artwork } from './artwork.js';
 import { icon } from './icons.js';
 import { showGameHelp } from './game-help.js';
 import './game-viewport.css';
+import { mountCookieNotice } from './cookie-notice.js';
 
 const player = browserPlayer();
 const format = new Intl.NumberFormat('pl-PL');
 let cleanup;
 let closeHelp;
-document.querySelector('#app').innerHTML = `<header class="game-topbar"><a class="game-back" href="./">${icon('arrow')}<span>Lobby</span></a><a class="game-wordmark" href="./">betify<span>.</span></a><span class="game-mode">WIRTUALNA ROZGRYWKA</span><div class="game-page-wallet">${icon('coin')}<strong class="balance-value"></strong><button class="game-reset" aria-label="Resetuj saldo do 10 000 żetonów">Resetuj saldo</button></div></header><main class="game-surface" id="game-content"></main><p class="game-page-notice" role="status" hidden></p>`;
+document.querySelector('#app').innerHTML = `<header class="game-topbar"><a class="game-back" href="./">${icon('arrow')}<span>Lobby</span></a><a class="game-wordmark" href="./">betify<span>.</span></a><span class="game-mode">WIRTUALNA ROZGRYWKA</span><div class="game-page-wallet">${icon('coin')}<strong class="balance-value"></strong><button class="game-reset" aria-label="Resetuj saldo do 10 000 żetonów">Resetuj saldo</button></div><button class="game-cookie-settings" data-cookie-settings aria-label="Cookies i prywatność">Cookies</button></header><main class="game-surface" id="game-content"></main><p class="game-page-notice" role="status" hidden></p>`;
 const surface = document.querySelector('#game-content');
 surface.addEventListener('click', (event) => {
   const button = event.target.closest('.rt-rules-toggle, .bj-rules summary');
@@ -75,4 +76,5 @@ window.addEventListener('hashchange', render);
 window.addEventListener('pagehide', () => cleanup?.());
 window.addEventListener('pageshow', (event) => { if (event.persisted) location.reload(); });
 render();
+mountCookieNotice();
 
