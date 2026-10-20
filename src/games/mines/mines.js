@@ -1,6 +1,7 @@
 import { createMines } from './engine.js';
 import { showGameHelp } from '../../game-help.js';
 import './mines.css';
+import { createRoundReporter } from '../../round-results.js';
 
 const format = new Intl.NumberFormat('pl-PL');
 const times = (n) => n === null ? '—' : `${n.toFixed(n >= 100 ? 2 : 3).replace('.', ',')}×`;
@@ -8,8 +9,9 @@ const percent = (n) => `${(n * 100).toFixed(2).replace('.', ',')}%`;
 const gem = '<svg viewBox="0 0 64 64" fill="none" aria-hidden="true"><path d="M6 22 20 8h24l14 14-26 34z" fill="#91f4d4"/><path d="M6 22h52M20 8l-1 14 13 34 13-34-1-14M19 22 32 8l13 14" stroke="#287c69" stroke-width="2"/><path d="m6 22 26 34-13-34z" fill="#4bbc9b"/><path d="M45 22h13L32 56z" fill="#38a789"/></svg>';
 const mine = '<svg viewBox="0 0 64 64" fill="none" aria-hidden="true"><g stroke="#ffa3a6" stroke-width="5" stroke-linecap="round"><path d="M32 5v10m0 34v10M5 32h10m34 0h10M13 13l8 8m22 22 8 8M13 51l8-8m22-22 8-8"/></g><circle cx="32" cy="32" r="20" fill="#9b424b" stroke="#ffb2ad" stroke-width="2"/><circle cx="26" cy="25" r="5" fill="#ffcebd"/></svg>';
 
-export function mountMines(root, player) {
+export function mountMines(root, player, { onRound } = {}) {
   const game = createMines(player);
+  const roundReporter = createRoundReporter(onRound);
   const events = new AbortController();
   const motion = window.matchMedia('(prefers-reduced-motion: reduce)');
   let disposed = false;
@@ -32,6 +34,7 @@ export function mountMines(root, player) {
   function render() {
     if (disposed) return;
     const state = preview || game.getState();
+    if (!busy) roundReporter.report(state);
     const playing = state.phase === 'playing';
     const finished = state.phase === 'finished';
     $('.mn-root').setAttribute('aria-busy', String(busy));
@@ -91,7 +94,7 @@ export function mountMines(root, player) {
     if (busy) return;
     error = '';
     if (button.dataset.mines) { $('#mn-mines').value = button.dataset.mines; error = game.configure(Number(button.dataset.mines)) || ''; render(); return; }
-    if (button.dataset.mn === 'start') { error = game.start(Number($('#mn-bet').value), Number($('#mn-mines').value)) || ''; render(); return; }
+    if (button.dataset.mn === 'start') { error = game.start(Number($('#mn-bet').value), Number($('#mn-mines').value)) || ''; if (!error) roundReporter.begin(); render(); return; }
     if (button.dataset.mn === 'cashout') { error = game.cashout() || ''; render(); return; }
     if (button.dataset.cell === undefined && button.dataset.mn !== 'random') return;
     const before = game.getState();
@@ -114,5 +117,6 @@ export function mountMines(root, player) {
   return () => {
     disposed = true; clearTimeout(timer); resolveWait?.(false);
     closeHelp?.(); events.abort(); unsubscribe(); game.close();
+    roundReporter.report(game.getState());
   };
 }

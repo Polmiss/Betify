@@ -1,11 +1,13 @@
 import { createBlackjack, handValue } from './blackjack-engine.js';
 import './blackjack.css';
+import { createRoundReporter } from '../round-results.js';
 
 const number = new Intl.NumberFormat('pl-PL');
 const outcomes = { blackjack: 'Blackjack! Idealne rozdanie.', win: 'Wygrywasz tę rundę!', push: 'Remis. Stawka wraca do Ciebie.', lose: 'Tym razem wygrywa krupier.', bust: 'Ponad 21. Wygrywa krupier.' };
 
-export function mountBlackjack(root, player) {
+export function mountBlackjack(root, player, { onRound } = {}) {
   const game = createBlackjack(player);
+  const roundReporter = createRoundReporter(onRound);
   let selectedBet = 100;
   let error = '';
   let rounds = 0;
@@ -91,6 +93,7 @@ export function mountBlackjack(root, player) {
   }
   function render() {
     const state = preview || game.getState();
+    if (!busy) roundReporter.report(state);
     const playing = state.phase === 'playing';
     const finished = state.phase === 'finished';
     const active = busy || playing || ['dealing', 'dealer'].includes(state.phase);
@@ -152,6 +155,7 @@ export function mountBlackjack(root, player) {
         selectedBet = Number($('#bj-bet').value);
         error = game.start(selectedBet, { deferOpening: true }) || '';
         if (!error) {
+          roundReporter.begin();
           countedRound = false;
           $('#bj-player').replaceChildren(); $('#bj-dealer').replaceChildren();
           const dealt = game.getState();
@@ -203,6 +207,7 @@ export function mountBlackjack(root, player) {
     for (const animation of animations) animation.cancel();
     animations.clear();
     game.stand();
+    roundReporter.report(game.getState());
     root.removeEventListener('click', onClick);
     $('#bj-bet').removeEventListener('input', onBetInput);
   };

@@ -1,6 +1,7 @@
 import { createHighLow, ranks, MAX_SKIPS } from './engine.js';
 import { showGameHelp } from '../../game-help.js';
 import './high-low.css';
+import { createRoundReporter } from '../../round-results.js';
 
 const format = new Intl.NumberFormat('pl-PL');
 const multiplier = (value) => `${value.toFixed(3).replace('.', ',')}×`;
@@ -9,8 +10,9 @@ const suitNames = { '♠': 'pik', '♥': 'kier', '♦': 'karo', '♣': 'trefl' }
 const cardFace = (card) => `<span>${ranks[card.rank - 1]}<small>${card.suit}</small></span><b>${card.suit}</b><span>${ranks[card.rank - 1]}<small>${card.suit}</small></span>`;
 const red = (card) => ['♥', '♦'].includes(card.suit);
 
-export function mountHighLow(root, player) {
+export function mountHighLow(root, player, { onRound } = {}) {
   const game = createHighLow(player);
+  const roundReporter = createRoundReporter(onRound);
   let busy = false;
   let disposed = false;
   let preview;
@@ -40,6 +42,7 @@ export function mountHighLow(root, player) {
   function render() {
     if (disposed) return;
     const state = preview || game.getState();
+    if (!busy) roundReporter.report(state);
     const playing = state.phase === 'playing';
     $('.hl-root').setAttribute('aria-busy', String(busy));
     const card = $('.hl-card');
@@ -99,7 +102,7 @@ export function mountHighLow(root, player) {
     }
     const action = button.dataset.hl;
     error = '';
-    if (action === 'start') { error = game.start(Number($('#hl-bet').value)) || ''; render(); return; }
+    if (action === 'start') { error = game.start(Number($('#hl-bet').value)) || ''; if (!error) roundReporter.begin(); render(); return; }
     if (action === 'cashout') { error = game.cashout() || ''; render(); return; }
     if (!['high', 'low', 'skip'].includes(action)) return;
     const before = game.getState();
@@ -129,5 +132,6 @@ export function mountHighLow(root, player) {
     closeHelp?.();
     events.abort(); unsubscribe();
     game.close();
+    roundReporter.report(game.getState());
   };
 }

@@ -2,6 +2,7 @@ import './roulette.css';
 import { BETS, WHEEL, colorOf, stakeTotal, drawPocket, settleRound } from './engine.js';
 import { CHIPS, chipLabel, createBettingRack } from './betting.js';
 import { createSpinPlan, sampleSpin } from './motion.js';
+import { createRoundReporter } from '../../round-results.js';
 
 const format = new Intl.NumberFormat('pl-PL');
 const chips = CHIPS;
@@ -17,7 +18,9 @@ function wheelMarkup() {
   return `<svg class="rt-wheel" viewBox="0 0 400 400" aria-hidden="true"><defs><radialGradient id="rt-center"><stop stop-color="#425c40"/><stop offset="1" stop-color="#182c23"/></radialGradient><linearGradient id="rt-rim" x2="1" y2="1"><stop stop-color="#f4dfab"/><stop offset=".5" stop-color="#8a6c3d"/><stop offset="1" stop-color="#e2c591"/></linearGradient></defs><circle cx="200" cy="200" r="195" fill="#0d1914"/><circle cx="200" cy="200" r="188" fill="url(#rt-rim)"/>${segments}<circle cx="200" cy="200" r="146" fill="none" stroke="#dfc58f" stroke-width="2"/><circle cx="200" cy="200" r="126" fill="url(#rt-center)" stroke="#ad915f" stroke-width="5"/><circle cx="200" cy="200" r="112" fill="none" stroke="#bd9c65" stroke-opacity=".3"/><circle cx="200" cy="200" r="70" fill="#172a21" stroke="#aa8c56"/><path d="M125 200h150M200 125v150" stroke="url(#rt-rim)" stroke-width="6" stroke-linecap="round"/><circle cx="200" cy="200" r="22" fill="url(#rt-rim)"/><circle cx="200" cy="200" r="10" fill="#82714b"/></svg>`;
 }
 
-export function mountRoulette(root, { player }) {
+export function mountRoulette(root, { player, onRound }) {
+  const roundReporter = createRoundReporter(onRound);
+  const reportResult = () => { if (result) roundReporter.report({ phase: 'finished', bet: result.stake, payout: result.payout }); };
   root.classList.add('roulette-game');
   const events = new AbortController();
   const rack = createBettingRack();
@@ -124,6 +127,7 @@ export function mountRoulette(root, { player }) {
     paint(sampleSpin(plan, 1));
     spinning = false;
     settled = true;
+    reportResult();
     root.classList.remove('rt-spinning');
     const resultNumber = find('.rt-result-number');
     resultNumber.textContent = result.pocket;
@@ -146,6 +150,7 @@ export function mountRoulette(root, { player }) {
     settled = false;
     try { result = settleRound(player, rack.totals(), drawPocket()); }
     catch (error) { spinning = false; message(error.message, true); updateBalance(); renderBets(); return; }
+    roundReporter.begin();
     previousStack = rack.snapshot();
     root.classList.add('rt-spinning');
     find('.rt-result-number').textContent = '…';
@@ -247,6 +252,7 @@ export function mountRoulette(root, { player }) {
     cancelAnimationFrame(frame);
     events.abort();
     unsubscribe();
+    reportResult();
     root.classList.remove('roulette-game');
   };
 }

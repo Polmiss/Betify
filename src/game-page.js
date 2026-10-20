@@ -13,6 +13,7 @@ import { icon } from './icons.js';
 import { showGameHelp } from './game-help.js';
 import './game-viewport.css';
 import { mountCookieNotice } from './cookie-notice.js';
+import { mountRoundHistory } from './round-history.js';
 
 const player = browserPlayer();
 const format = new Intl.NumberFormat('pl-PL');
@@ -20,6 +21,10 @@ let cleanup;
 let closeHelp;
 document.querySelector('#app').innerHTML = `<header class="game-topbar"><a class="game-back" href="./">${icon('arrow')}<span>Lobby</span></a><a class="game-wordmark" href="./">betify<span>.</span></a><span class="game-mode">WIRTUALNA ROZGRYWKA</span><div class="game-page-wallet">${icon('coin')}<strong class="balance-value"></strong><button class="game-reset" aria-label="Resetuj saldo do 10 000 żetonów">Resetuj saldo</button></div><button class="game-cookie-settings" data-cookie-settings aria-label="Cookies i prywatność">Cookies</button></header><main class="game-surface" id="game-content"></main><p class="game-page-notice" role="status" hidden></p>`;
 const surface = document.querySelector('#game-content');
+const historyRoot = document.createElement('section');
+historyRoot.className = 'round-history';
+surface.before(historyRoot);
+const roundHistory = mountRoundHistory(historyRoot);
 surface.addEventListener('click', (event) => {
   const button = event.target.closest('.rt-rules-toggle, .bj-rules summary');
   if (!button) return;
@@ -57,13 +62,16 @@ function render() {
   surface.className = 'game-surface';
   const id = location.hash.replace(/^#(?:game\/)?/, '') || 'roulette';
   const game = games.find((item) => item.id === id);
+  roundHistory.select(id);
+  historyRoot.hidden = !game;
+  const onRound = roundHistory.forGame(id);
   if (!game) { document.title = 'Nie znaleziono gry — Betify'; surface.innerHTML = '<section class="game-placeholder"><h1>Nie znaleziono gry.</h1><a class="button button-primary" href="./">Wróć do lobby</a></section>'; return; }
   document.title = `${game.name} — Betify`;
-  if (id === 'roulette') cleanup = mountRoulette(surface, { player });
-  else if (id === 'blackjack') { surface.classList.add('blackjack-game'); cleanup = mountBlackjack(surface, player); }
-  else if (id === 'high-low') { surface.classList.add('high-low-game'); cleanup = mountHighLow(surface, player); }
-  else if (id === 'mines') { surface.classList.add('mines-game'); cleanup = mountMines(surface, player); }
-  else if (['dice', 'trader', 'goal', 'plinko'].includes(id)) cleanup = mountInstant(surface, player, id);
+  if (id === 'roulette') cleanup = mountRoulette(surface, { player, onRound });
+  else if (id === 'blackjack') { surface.classList.add('blackjack-game'); cleanup = mountBlackjack(surface, player, { onRound }); }
+  else if (id === 'high-low') { surface.classList.add('high-low-game'); cleanup = mountHighLow(surface, player, { onRound }); }
+  else if (id === 'mines') { surface.classList.add('mines-game'); cleanup = mountMines(surface, player, { onRound }); }
+  else if (['dice', 'trader', 'goal', 'plinko'].includes(id)) cleanup = mountInstant(surface, player, id, { onRound });
   else {
     surface.innerHTML = `<section class="game-placeholder"><div class="game-placeholder-art ${game.color}">${artwork(id, 'page')}</div><div><span class="eyebrow">BETIFY ORIGINALS · WKRÓTCE</span><h1>${game.name}<span class="mint">.</span></h1><h2>${game.tagline}</h2><p>${game.description}</p><ol class="rules">${game.rules.map((rule) => `<li>${rule}</li>`).join('')}</ol><button class="button button-primary" id="page-favorite">${icon('heart')}<span></span></button><p class="game-placeholder-note">Przygotowujemy tę grę. Tymczasem zagraj w ruletkę lub blackjacka.</p></div></section>`;
     const favorite = document.querySelector('#page-favorite');

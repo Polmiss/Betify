@@ -3,6 +3,7 @@ import { showGameHelp } from '../../game-help.js';
 import './instant.css';
 import { animatePlinko, plinkoPeg, plinkoSlotX, PLINKO_BOARD } from './plinko-motion.js';
 import './plinko.css';
+import { createRoundReporter } from '../../round-results.js';
 
 const format = new Intl.NumberFormat('pl-PL');
 const number = (value, digits = 2) => value.toLocaleString('pl-PL', { minimumFractionDigits: digits, maximumFractionDigits: digits });
@@ -22,8 +23,9 @@ const copy = {
     rules: '<p>Kulka przechodzi przez 12 rzędów kołków. Każdy krok to niezależne losowanie w lewo albo w prawo z szansą 50%. Liczba kroków w prawo wyznacza jedno z 13 pól końcowych. Środkowe pola występują częściej niż skrajne.</p><p>Wypłata to stawka razy mnożnik z wybranego poziomu ryzyka. Tabela jest widoczna na planszy przed grą. Niskie ryzyko: 0,7–8×, wysokie: 0,1–100×. Również przegrana może zwrócić część stawki. Animacja pokazuje wylosowaną drogę.</p>' },
 };
 
-export function mountInstant(root, player, id) {
+export function mountInstant(root, player, id, { onRound } = {}) {
   const game = createInstantGame(id, player);
+  const roundReporter = createRoundReporter(onRound);
   const text = copy[id];
   let busy = false;
   let disposed = false;
@@ -98,6 +100,7 @@ export function mountInstant(root, player, id) {
   function render() {
     if (disposed) return;
     const state = preview || game.getState();
+    if (!busy) roundReporter.report(state);
     const playing = state.phase === 'playing';
     const settling = state.phase === 'settling';
     $('.ig-root').setAttribute('aria-busy', String(busy));
@@ -147,6 +150,7 @@ export function mountInstant(root, player, id) {
     try {
       error = (action === 'play' ? game.play(Number($('#ig-bet').value), options()) : action === 'cell' ? game.reveal(value) : action === 'zone' ? game.shoot(value) : action === 'cashout' ? game.cashout() : game.retry()) || '';
       const after = game.getState();
+      if (action === 'play' && (!error || after.phase === 'settling' && before.phase !== 'settling')) roundReporter.begin();
       const animate = !error && (action === 'cell' || action === 'zone' || action === 'play' && ['dice', 'trader', 'plinko'].includes(id));
       if (animate) {
         preview = before;
@@ -193,5 +197,6 @@ export function mountInstant(root, player, id) {
     ballAnimation?.cancel(); closeHelp?.();
     events.abort(); unsubscribe();
     game.close();
+    roundReporter.report(game.getState());
   };
 }
