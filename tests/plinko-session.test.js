@@ -1,8 +1,12 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createPlayerStore, MAX_BALANCE } from '../src/store.js';
-import { createPlinkoSession } from '../src/games/instant/plinko-session.js';
+import { createPlinkoSession as createSessionEngine } from '../src/games/instant/plinko-session.js';
 import { payoutFor } from '../src/games/instant/engine.js';
+
+// Fix only the rounding branch in gameplay fixtures; rtp.test verifies both
+// branches and the expectation of the production rounding implementation.
+const createPlinkoSession = (player, options = {}) => createSessionEngine(player, { round: (value) => Math.floor(value + 1e-8), ...options });
 
 function wallet(balance = 10000) {
   let saved = JSON.stringify({ balance, favorites: [] });
@@ -69,7 +73,9 @@ test('failed credit can be retried once and close still settles pending balls', 
 });
 
 test('balance cap leaves room for all unrevealed stakes and history is isolated', () => {
-  const player = wallet(MAX_BALANCE);
+  const near = createPlinkoSession(wallet(MAX_BALANCE));
+  assert.ok(near.drop(100).error);
+  const player = wallet(MAX_BALANCE - 1000000);
   const game = createPlinkoSession(player, { seed: () => 1 });
   const first = game.drop(100).ball;
   const second = game.drop(100).ball;

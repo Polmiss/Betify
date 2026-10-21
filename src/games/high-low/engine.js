@@ -1,4 +1,5 @@
 import { MAX_BALANCE } from '../../store.js';
+import { TARGET_RTP, roundPayout } from '../../rtp.js';
 
 export const MIN_BET = 10;
 export const MAX_BET = 5000;
@@ -32,7 +33,8 @@ export function isCorrect(previous, next, direction) {
   return false;
 }
 
-export function createHighLow(player, { draw = drawCard } = {}) {
+export function createHighLow(player, { draw = drawCard, round = roundPayout } = {}) {
+  let pending;
   function nextCard() {
     const card = draw();
     choicesFor(card.rank);
@@ -44,23 +46,26 @@ export function createHighLow(player, { draw = drawCard } = {}) {
   function offers() {
     return Object.fromEntries(Object.entries(choicesFor(state.card.rank)).map(([direction, choice]) => {
       const probability = choice.count / 13;
-      const multiplier = Math.min(MAX_MULTIPLIER, state.bet ? MAX_PAYOUT / state.bet : MAX_MULTIPLIER,
-        state.multiplier * (state.wins === 0 ? 0.99 : 1) / probability);
+      const multiplier = state.multiplier * (state.wins === 0 ? TARGET_RTP : 1) / probability;
       return [direction, { ...choice, probability, multiplier, payout: value(multiplier) }];
     }));
   }
   function settle(outcome, desiredPayout) {
     if (state.phase !== 'playing') return 'Ta runda jest już zakończona.';
     // Other tabs share the wallet; never overflow it if its balance changed mid-round.
-    const payout = Math.min(desiredPayout, MAX_BALANCE - player.getState().balance);
+    pending ??= { outcome, payout: round(desiredPayout) };
+    const payout = pending.payout;
+    if (player.getState().balance + payout > MAX_BALANCE) return 'Brak miejsca w portfelu na pełną wypłatę.';
     if (payout > 0 && !player.credit(payout)) return 'Nie udało się rozliczyć żetonów. Spróbuj ponownie.';
-    state = { ...state, phase: 'finished', outcome, payout };
+    state = { ...state, phase: 'finished', outcome: pending.outcome, payout };
+    pending = undefined;
     return null;
   }
   function cashout() {
     if (state.phase !== 'playing' || state.wins === 0) return 'Najpierw traf przynajmniej jeden typ.';
-    return settle('cashout', value());
+    return settle('cashout', state.bet * state.multiplier);
   }
+  const atLimit = () => Object.values(offers()).some((offer) => offer.multiplier > MAX_MULTIPLIER || Math.ceil(state.bet * offer.multiplier) > MAX_PAYOUT);
   return {
     getState() {
       return { ...state, card: { ...state.card }, history: state.history.map((entry) => ({ ...entry, card: { ...entry.card } })),
@@ -70,13 +75,16 @@ export function createHighLow(player, { draw = drawCard } = {}) {
       if (state.phase === 'playing') return 'Najpierw zakończ obecną serię.';
       if (!Number.isSafeInteger(bet) || bet < MIN_BET || bet > MAX_BET) return 'Wybierz całkowitą stawkę od 10 do 5 000 żetonów.';
       if (player.getState().balance < bet) return 'Za mało żetonów. Możesz zresetować saldo w nagłówku.';
+      if (player.getState().balance - bet + MAX_PAYOUT > MAX_BALANCE) return 'Za mało miejsca w portfelu na pełną wypłatę. Zresetuj saldo.';
       if (!player.debit(bet)) return 'Nie udało się pobrać stawki.';
+      pending = undefined;
       state = { ...state, phase: 'playing', bet, multiplier: 1, wins: 0, skips: 0, payout: 0, outcome: null,
         history: [{ card: { ...state.card }, result: 'start' }] };
       return null;
     },
     predict(direction) {
       if (state.phase !== 'playing') return 'Najpierw rozpocznij grę.';
+      if (pending) return 'Najpierw ponów odbiór oczekującej wypłaty.';
       if (!['high', 'low'].includes(direction)) return 'Wybierz wyżej albo niżej.';
       const offer = offers()[direction];
       const previous = state.card.rank;
@@ -88,10 +96,11 @@ export function createHighLow(player, { draw = drawCard } = {}) {
       if (!won) { state.phase = 'finished'; state.outcome = 'lose'; return null; }
       state.wins++;
       state.multiplier = offer.multiplier;
-      if (state.multiplier >= MAX_MULTIPLIER || value() >= MAX_PAYOUT) return settle('limit', value());
+      if (atLimit()) return settle('limit', state.bet * state.multiplier);
       return null;
     },
     skip() {
+      if (pending) return 'Najpierw ponów odbiór oczekującej wypłaty.';
       if (state.phase === 'playing' && state.skips >= MAX_SKIPS) return 'Wykorzystano 52 pominięcia w tej rundzie.';
       const card = nextCard();
       if (state.phase === 'playing') {
@@ -100,6 +109,7 @@ export function createHighLow(player, { draw = drawCard } = {}) {
         state.history = state.history.slice(-12);
       }
       state.card = card;
+      if (state.phase === 'playing' && state.wins && atLimit()) return settle('limit', state.bet * state.multiplier);
       return null;
     },
     cashout,

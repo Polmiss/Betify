@@ -17,9 +17,9 @@ test('European wheel contains every pocket once, with correct color groups', () 
   assert.equal(colorOf(15), 'black');
 });
 
-test('straight-up bets return 36 times the stake, including zero', () => {
+test('straight-up bets return 36.63 times the stake, including zero', () => {
   for (const n of WHEEL) {
-    assert.equal(calculateResult({ [`number-${n}`]: 10 }, n).payout, 360);
+    assert.equal(calculateResult({ [`number-${n}`]: 10 }, n).payout, 366.3);
     assert.equal(calculateResult({ [`number-${n}`]: 10 }, (n + 1) % 37).payout, 0);
   }
 });
@@ -31,7 +31,7 @@ test('zero loses every outside bet without being even, low or a column', () => {
   assert.deepEqual(result.winningIds, []);
 });
 
-test('even-money bets cover the correct boundaries and pay twice the stake', () => {
+test('even-money bets cover the correct boundaries and use the RTP 99% payout', () => {
   const expectations = {
     red: (n) => RED.includes(n),
     black: (n) => n > 0 && !RED.includes(n),
@@ -41,28 +41,28 @@ test('even-money bets cover the correct boundaries and pay twice the stake', () 
     high: (n) => n >= 19 && n <= 36,
   };
   for (const [id, wins] of Object.entries(expectations)) {
-    for (const pocket of WHEEL) assert.equal(calculateResult({ [id]: 100 }, pocket).payout, wins(pocket) ? 200 : 0, `${id} at ${pocket}`);
+    for (const pocket of WHEEL) assert.equal(calculateResult({ [id]: 100 }, pocket).payout, wins(pocket) ? 203.5 : 0, `${id} at ${pocket}`);
   }
 });
 
-test('dozens and columns cover 12 pockets each and pay 3 times including stake', () => {
+test('dozens and columns cover 12 pockets each and pay 3.0525 times including stake', () => {
   for (const prefix of ['dozen', 'column']) {
     assert.deepEqual([1, 2, 3].flatMap((n) => BETS[`${prefix}-${n}`].pockets).sort((a, b) => a - b), Array.from({ length: 36 }, (_, n) => n + 1));
     for (const n of [1, 2, 3]) {
       const bet = BETS[`${prefix}-${n}`];
       assert.equal(bet.pockets.length, 12);
-      for (const pocket of WHEEL) assert.equal(calculateResult({ [bet.id]: 50 }, pocket).payout, bet.pockets.includes(pocket) ? 150 : 0);
+      for (const pocket of WHEEL) assert.equal(calculateResult({ [bet.id]: 50 }, pocket).payout, bet.pockets.includes(pocket) ? 152.625 : 0);
     }
   }
 });
 
 test('mixed bets accumulate payouts and deduct all stakes exactly once', () => {
   const player = playerWith();
-  const result = settleRound(player, { 'number-32': 10, red: 100, high: 50, odd: 20 }, 32);
+  const result = settleRound(player, { 'number-32': 10, red: 100, high: 50, odd: 20 }, 32, { round: Math.floor });
   assert.equal(result.stake, 180);
-  assert.equal(result.payout, 360 + 200 + 100);
-  assert.equal(result.net, 480);
-  assert.equal(player.getState().balance, 10480);
+  assert.equal(result.payout, 671);
+  assert.equal(result.net, 491);
+  assert.equal(player.getState().balance, 10491);
 });
 
 test('losing rounds debit the stake, and invalid rounds never mutate balance', () => {

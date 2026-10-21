@@ -1,11 +1,12 @@
 import { MAX_BALANCE } from '../../store.js';
+import { TARGET_RTP, roundPayout } from '../../rtp.js';
 
 export const WHEEL = Object.freeze([0, 32, 15, 19, 4, 21, 2, 25, 17, 34, 6, 27, 13, 36, 11, 30, 8, 23, 10, 5, 24, 16, 33, 1, 20, 14, 31, 9, 22, 18, 29, 7, 28, 12, 35, 3, 26]);
 export const RED = Object.freeze([1, 3, 5, 7, 9, 12, 14, 16, 18, 19, 21, 23, 25, 27, 30, 32, 34, 36]);
 export const ROUND_LIMIT = 100000;
 export const colorOf = (n) => n === 0 ? 'green' : RED.includes(n) ? 'red' : 'black';
 const numbers = Array.from({ length: 36 }, (_, i) => i + 1);
-const definition = (id, label, pockets, multiplier) => Object.freeze({ id, label, pockets: Object.freeze(pockets), multiplier });
+const definition = (id, label, pockets) => Object.freeze({ id, label, pockets: Object.freeze(pockets), multiplier: TARGET_RTP * 37 / pockets.length });
 export const BETS = Object.freeze(Object.fromEntries([
   ...Array.from({ length: 37 }, (_, n) => definition(`number-${n}`, `Liczba ${n}`, [n], 36)),
   definition('red', 'Czerwone', [...RED], 2),
@@ -44,15 +45,18 @@ export function drawPocket(random = globalThis.crypto) {
   return sample[0] % 37;
 }
 
-export function settleRound(player, bets, pocket) {
+export function settleRound(player, bets, pocket, { round = roundPayout } = {}) {
   player.refresh?.(false);
-  const result = calculateResult(bets, pocket);
+  const expected = calculateResult(bets, pocket);
+  const result = { ...expected, expectedPayout: expected.payout };
   if (!result.stake) throw new Error('Najpierw postaw żetony na planszy.');
   const balance = player.getState().balance;
   if (result.stake > balance) throw new Error('Za mało żetonów. Zmniejsz zakłady lub zresetuj saldo.');
   // Check the maximum possible return before accepting a round, regardless of its outcome.
-  const largestReturn = Math.max(...WHEEL.map((n) => calculateResult(bets, n).payout));
+  const largestReturn = Math.ceil(Math.max(...WHEEL.map((n) => calculateResult(bets, n).payout)));
   if (balance - result.stake + largestReturn > MAX_BALANCE) throw new Error('Możliwa wygrana przekracza limit portfela. Zmniejsz stawkę.');
+  result.payout = round(result.expectedPayout);
+  result.net = result.payout - result.stake;
   if (!player.debit(result.stake)) throw new Error('Nie udało się pobrać stawki. Spróbuj ponownie.');
   if (result.payout && !player.credit(result.payout)) {
     player.credit(result.stake);

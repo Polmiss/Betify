@@ -2,6 +2,7 @@ import { createHighLow, ranks, MAX_SKIPS } from './engine.js';
 import { showGameHelp } from '../../game-help.js';
 import './high-low.css';
 import { createRoundReporter } from '../../round-results.js';
+import { payoutLabel } from '../../rtp.js';
 
 const format = new Intl.NumberFormat('pl-PL');
 const multiplier = (value) => `${value.toFixed(3).replace('.', ',')}×`;
@@ -55,7 +56,7 @@ export function mountHighLow(root, player, { onRound } = {}) {
     $('.hl-board').dataset.outcome = busy ? '' : state.outcome || '';
     $('.hl-stake-value').textContent = state.bet ? format.format(state.bet) : '—';
     $('.hl-multiplier').textContent = multiplier(state.multiplier);
-    $('.hl-payout').textContent = format.format(state.phase === 'finished' ? state.payout : state.availablePayout);
+    $('.hl-payout').textContent = (state.phase === 'finished' ? format.format(state.payout) : state.wins ? payoutLabel(state.bet * state.multiplier) : '0');
     $('.hl-wins').textContent = state.wins;
     $('.hl-betting').hidden = playing || busy;
     $('.hl-decisions').hidden = !playing && !busy;
@@ -68,7 +69,7 @@ export function mountHighLow(root, player, { onRound } = {}) {
       button.disabled = busy || !playing;
     }
     $('[data-hl="cashout"]').disabled = busy || !playing || state.wins === 0;
-    $('[data-hl="cashout"]').textContent = state.wins ? `Odbierz ${format.format(state.availablePayout)} żetonów` : 'Odbierz po trafieniu';
+    $('[data-hl="cashout"]').textContent = state.wins ? `Odbierz ${payoutLabel(state.bet * state.multiplier)} żetonów` : 'Odbierz po trafieniu';
     $('[data-hl="skip"]').disabled = busy || (playing && state.skips >= MAX_SKIPS);
     $('.hl-skip-note').textContent = playing ? `Pominięcia: ${state.skips}/${MAX_SKIPS} · bez zmiany mnożnika` : 'A = 1 · J = 11 · Q = 12 · K = 13';
     $('.hl-error').textContent = error;
@@ -85,8 +86,8 @@ export function mountHighLow(root, player, { onRound } = {}) {
     closeHelp?.();
     closeHelp = showGameHelp('High Low — zasady', [
       '<p>Odgadnij rangę następnej karty. Kolejność: A, 2–10, J, Q, K. Kolor nie wpływa na wynik. Losujemy ze zwracaniem: każda ranga ma zawsze szansę 1/13, karty mogą się powtarzać.</p><p>Rangi 2–Q: „wyżej lub taka sama” i „niżej lub taka sama” zaliczają remis jako trafienie. Przy A wybierasz „wyżej” albo „taka sama”; przy K „niżej” albo „taka sama”.</p>',
-      '<p>Po trafieniu możesz odebrać żetony lub kontynuować. Nietrafiony typ kończy serię i traci całą stawkę oraz nieodebrane żetony.</p><p>Szanse i łączny mnożnik po kolejnym trafieniu są widoczne przed wyborem. Mnożnik wynosi 0,99 / iloczyn szans trafionych typów. Wypłatę, zawierającą stawkę, zaokrąglamy w dół do całych żetonów.</p>',
-      '<p>Pominięcie wymienia aktualną kartę i nie zmienia mnożnika. Limit: 52 pominięcia w aktywnej rundzie. Przed rozpoczęciem możesz zmieniać kartę bez limitu.</p><p>Stawka: 10–5 000. Limit serii: 1 000× lub 1 000 000 żetonów — przy dojściu do limitu automatycznie odbieramy żetony. Obowiązuje też limit salda portfela.</p>',
+      '<p>Po trafieniu możesz odebrać żetony lub kontynuować. Nietrafiony typ kończy serię i traci całą stawkę oraz nieodebrane żetony.</p><p>Szanse i łączny mnożnik po kolejnym trafieniu są widoczne przed wyborem. Mnożnik wynosi 0,99 / iloczyn szans trafionych typów. RTP 99%. Wypłata zawiera stawkę. Ułamki zaokrąglamy losowo do sąsiednich całych żetonów z zachowaniem średniej; panel pokazuje zakres.</p>',
+      '<p>Pominięcie wymienia aktualną kartę i nie zmienia mnożnika. Limit: 52 pominięcia w aktywnej rundzie. Przed rozpoczęciem możesz zmieniać kartę bez limitu.</p><p>Stawka: 10–5 000. Jeśli po trafieniu lub pominięciu następna wygrana w którymkolwiek kierunku przekroczyłaby 1 000× lub 1 000 000 żetonów, automatycznie odbieramy pełną bieżącą wygraną. Nie obcinamy mnożników.</p>',
       '<p>Przy wyjściu ze strony odbieramy żetony po trafieniach; jeśli jeszcze nie typowano, zwracamy stawkę. Reset salda kończy serię i przywraca 10 000 żetonów. Awaryjne zamknięcie przeglądarki może uniemożliwić rozliczenie.</p><p>To demonstracyjna gra wyłącznie na wirtualne żetony.</p>',
     ]);
   }

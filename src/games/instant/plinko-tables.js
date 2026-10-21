@@ -1,4 +1,7 @@
-export const PLINKO_TABLES = {
+import { TARGET_RTP } from '../../rtp.js';
+import { PLINKO_DISTRIBUTION } from './plinko-distribution.js';
+
+const weights = {
   8: {
     low: [5, 2, 1.4, 1.1, .6, 1.1, 1.4, 2, 5],
     medium: [13, 3, 1.3, .7, .4, .7, 1.3, 3, 13],
@@ -15,4 +18,12 @@ export const PLINKO_TABLES = {
     high: [1000, 130, 26, 9, 4, 2, .2, .2, .1, .2, .2, 2, 4, 9, 26, 130, 1000],
   },
 };
+export const PLINKO_TABLES = Object.freeze(Object.fromEntries(Object.entries(weights).map(([rows, risks]) => {
+  const counts = PLINKO_DISTRIBUTION.counts[rows];
+  const size = PLINKO_DISTRIBUTION.poolSize * 2;
+  return [rows, Object.freeze(Object.fromEntries(Object.entries(risks).map(([risk, values]) => {
+    const expectation = values.reduce((sum, value, slot) => sum + value * counts[slot] / size, 0);
+    return [risk, Object.freeze(values.map((value) => value * TARGET_RTP / expectation))];
+  })))];
+})));
 export const plinkoPaytable = (risk, rows = 12) => PLINKO_TABLES[rows]?.[risk];

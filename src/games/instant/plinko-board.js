@@ -1,7 +1,7 @@
 import { plinkoGeometry, plinkoPeg, plinkoSlotX, PLINKO_BOARD } from './plinko-physics.js';
 import { plinkoPaytable } from './plinko-tables.js';
 export const riskNames = { low: 'Niskie', medium: 'Średnie', high: 'Wysokie' };
-const number = (value) => value.toLocaleString('pl-PL', { maximumFractionDigits: 1 });
+const number = (value) => value.toLocaleString('pl-PL', { maximumFractionDigits: value >= 10 ? 1 : value >= 1 ? 2 : 3 });
 
 export function plinkoBoard(rows) {
   const { slotWidth, step } = plinkoGeometry(rows);
@@ -12,7 +12,7 @@ export function plinkoBoard(rows) {
   const slots = Object.keys(riskNames).map((risk, index) => plinkoPaytable(risk, rows).map((value, slot) => {
     const x = plinkoSlotX(slot, rows);
     const y = 398 + index * 28;
-    return `<g data-slot="${slot}" data-risk="${risk}" class="ig-slot ig-risk-${risk}"><rect class="ig-slot-shadow" x="${x - (slotWidth - 4) / 2}" y="${y + 4}" width="${slotWidth - 4}" height="24" rx="4"/><rect class="ig-slot-face" x="${x - (slotWidth - 4) / 2}" y="${y}" width="${slotWidth - 4}" height="24" rx="4"/><text x="${x}" y="${y + 16}" style="font-size:${rows === 16 ? 9.5 : 11.5}px">${number(value)}×</text></g>`;
+    return `<g data-slot="${slot}" data-risk="${risk}" class="ig-slot ig-risk-${risk}"><title>${riskNames[risk]} ryzyko, pole ${slot + 1}: ${value.toLocaleString('pl-PL', { maximumFractionDigits: 12 })}×; etykieta skrócona</title><rect class="ig-slot-shadow" x="${x - (slotWidth - 4) / 2}" y="${y + 4}" width="${slotWidth - 4}" height="24" rx="4"/><rect class="ig-slot-face" x="${x - (slotWidth - 4) / 2}" y="${y}" width="${slotWidth - 4}" height="24" rx="4"/><text x="${x}" y="${y + 16}" style="font-size:${rows === 16 ? 8 : 10}px">${number(value)}×</text></g>`;
   }).join('')).join('');
   const railTop = 320 - 2 * step - 14;
   const gradients = ['#37ce8e', '#f5b944', '#ff6177'].map((color, index) => `<radialGradient id="plinko-ball-${Object.keys(riskNames)[index]}"><stop offset="0" stop-color="#fff8e6"/><stop offset="1" stop-color="${color}"/></radialGradient>`).join('');

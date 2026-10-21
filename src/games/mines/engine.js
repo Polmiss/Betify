@@ -1,4 +1,5 @@
 import { MAX_BALANCE } from '../../store.js';
+import { TARGET_RTP, roundPayout } from '../../rtp.js';
 
 export const TILE_COUNT = 25;
 export const MIN_BET = 10;
@@ -30,10 +31,10 @@ export function calculateOdds(mineCount, safePicks, bet = 0) {
   if (!validMines(mineCount) || !Number.isInteger(safePicks) || safePicks < 0 || safePicks > TILE_COUNT - mineCount) throw new Error('Nieprawidłowy stan planszy.');
   let fairMultiplier = 1;
   for (let i = 0; i < safePicks; i++) fairMultiplier *= (TILE_COUNT - i) / (TILE_COUNT - mineCount - i);
-  const multiplier = safePicks === 0 ? 1 : fairMultiplier * .99;
+  const multiplier = safePicks === 0 ? 1 : fairMultiplier * TARGET_RTP;
   const safeRemaining = TILE_COUNT - mineCount - safePicks;
   const nextChance = safeRemaining / (TILE_COUNT - safePicks);
-  const nextMultiplier = safeRemaining ? fairMultiplier * (TILE_COUNT - safePicks) / safeRemaining * .99 : null;
+  const nextMultiplier = safeRemaining ? fairMultiplier * (TILE_COUNT - safePicks) / safeRemaining * TARGET_RTP : null;
   const payout = (value) => Math.min(MAX_PAYOUT, Math.floor(bet * value + 1e-8));
   return { multiplier, safeRemaining, nextChance, nextMultiplier,
     effectiveMultiplier: bet > 0 ? Math.min(multiplier, MAX_PAYOUT / bet) : multiplier,
@@ -42,29 +43,34 @@ export function calculateOdds(mineCount, safePicks, bet = 0) {
     nextPayout: nextMultiplier === null ? null : payout(nextMultiplier) };
 }
 
-export function createMines(player, { boardFactory = createBoard, pick = randomIndex } = {}) {
+export function createMines(player, { boardFactory = createBoard, pick = randomIndex, round = roundPayout } = {}) {
   let state = { phase: 'ready', mineCount: 3, bet: 0, opened: [], hit: null, payout: 0, outcome: null };
   let mines = new Set();
+  let pending;
   const odds = () => calculateOdds(state.mineCount, state.opened.length, state.bet);
   function settle(outcome, desiredPayout) {
     if (state.phase !== 'playing') return 'Ta runda jest już zakończona.';
-    const payout = Math.min(desiredPayout, MAX_BALANCE - player.getState().balance);
+    pending ??= { outcome, payout: round(desiredPayout) };
+    const payout = pending.payout;
+    if (player.getState().balance + payout > MAX_BALANCE) return 'Brak miejsca w portfelu na pełną wypłatę.';
     if (payout > 0 && !player.credit(payout)) return 'Nie udało się rozliczyć żetonów. Spróbuj ponownie odebrać wygraną.';
-    state = { ...state, phase: 'finished', outcome, payout };
+    state = { ...state, phase: 'finished', outcome: pending.outcome, payout };
+    pending = undefined;
     return null;
   }
   function cashout() {
     if (state.phase !== 'playing' || state.opened.length === 0) return 'Najpierw odkryj przynajmniej jeden diament.';
-    return settle('cashout', odds().availablePayout);
+    return settle('cashout', state.bet * odds().multiplier);
   }
   function reveal(index) {
     if (state.phase !== 'playing') return 'Najpierw rozpocznij rundę.';
+    if (pending) return 'Najpierw ponów odbiór oczekującej wypłaty.';
     if (!Number.isInteger(index) || index < 0 || index >= TILE_COUNT) return 'Nieprawidłowe pole.';
     if (state.opened.includes(index)) return 'To pole jest już odkryte.';
     if (mines.has(index)) { state = { ...state, phase: 'finished', hit: index, outcome: 'mine', payout: 0 }; return null; }
     state.opened.push(index);
-    if (state.opened.length === TILE_COUNT - state.mineCount) return settle('cleared', odds().availablePayout);
-    if (odds().availablePayout >= MAX_PAYOUT) return settle('limit', MAX_PAYOUT);
+    if (state.opened.length === TILE_COUNT - state.mineCount) return settle('cleared', state.bet * odds().multiplier);
+    if (Math.ceil(state.bet * odds().nextMultiplier) > MAX_PAYOUT) return settle('limit', state.bet * odds().multiplier);
     return null;
   }
   return {
@@ -88,10 +94,12 @@ export function createMines(player, { boardFactory = createBoard, pick = randomI
       if (!Number.isSafeInteger(bet) || bet < MIN_BET || bet > MAX_BET) return 'Wybierz całkowitą stawkę od 10 do 5 000 żetonów.';
       if (!validMines(mineCount)) return 'Wybierz od 1 do 24 min.';
       if (player.getState().balance < bet) return 'Za mało żetonów. Możesz zresetować saldo w nagłówku.';
+      if (player.getState().balance - bet + MAX_PAYOUT > MAX_BALANCE) return 'Za mało miejsca w portfelu na pełną wypłatę. Zresetuj saldo.';
       const layout = boardFactory(mineCount);
       if (!Array.isArray(layout) || layout.length !== mineCount || new Set(layout).size !== mineCount || layout.some((i) => !Number.isInteger(i) || i < 0 || i >= TILE_COUNT)) throw new Error('Nieprawidłowy układ min.');
       if (!player.debit(bet)) return 'Nie udało się pobrać stawki.';
       mines = new Set(layout);
+      pending = undefined;
       state = { phase: 'playing', mineCount, bet, opened: [], hit: null, payout: 0, outcome: null };
       return null;
     },

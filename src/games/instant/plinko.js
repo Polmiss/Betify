@@ -135,8 +135,8 @@ export function mountPlinko(root, player, { onRound } = {}) {
       closeHelp = showGameHelp('Zasady Plinko', [
         '<p>Wybierz stawkę za kulkę i 8, 12 albo 16 rzędów. Zielony, żółty i czerwony przycisk puszczają kulki o niskim, średnim i wysokim ryzyku. Tabele mnożników widać pod planszą.</p>',
         '<p>Możesz puszczać dowolną liczbę kulek jednocześnie, o ile masz dostępne żetony na ich stawki. Kulki są rozliczane niezależnie. Rzędy można zmienić po zakończeniu wszystkich lotów.</p>',
-        '<p>Losujemy pozycję i prędkość początkową. Stała grawitacja i zderzenia z kołkami, prowadnicami oraz przegrodami wyznaczają tor i końcowe pole. Przy odbiciach kulka traci energię.</p>',
-        '<p>Stawka jest rezerwowana przy zrzucie. Saldo i historia uwzględniają wynik dopiero po animacji każdej kulki. Wypłata to stawka razy mnożnik z tabeli koloru; zawiera stawkę. Zwrot poniżej stawki oznacza stratę. Zaokrąglamy w dół; limit wypłaty to 1 000 000, salda 1 000 000 000 żetonów. Wyjście z gry rozlicza lecące kulki. Własny wariant demonstracyjny Betify.</p>',
+        '<p>Losujemy jeden z 32 768 równoprawdopodobnych startów. Stała grawitacja i zderzenia z kołkami, prowadnicami oraz przegrodami wyznaczają tor i końcowe pole. Przy odbiciach kulka traci energię. Tabele dla każdego koloru i liczby rzędów mają RTP 99%; etykiety na planszy są skrócone, dokładny mnożnik jest w opisie pola.</p>',
+        '<p>Stawka jest rezerwowana przy zrzucie. Saldo i historia uwzględniają wynik dopiero po animacji każdej kulki. Wypłata to stawka razy dokładny mnożnik pola i zawiera stawkę. Ułamki zaokrąglamy losowo z zachowaniem średniej. Limit wypłaty: 1 000 000; przed przyjęciem stawki sprawdzamy miejsce na pełne wypłaty wszystkich kulek. Wyjście z gry rozlicza lecące kulki. Własny wariant demonstracyjny Betify.</p>',
       ]);
     }
   }, { signal: events.signal });

@@ -7,7 +7,9 @@
     "dev": "vite --host 127.0.0.1",
     "build": "vite build",
     "preview": "vite preview --host 127.0.0.1",
-    "test": "node --test"
+    "test": "node --test",
+    "calibrate:plinko": "node scripts/calibrate-plinko.mjs",
+    "calibrate:blackjack": "node scripts/calibrate-blackjack.mjs"
   },
   "engines": {
     "node": ">=22.12.0"

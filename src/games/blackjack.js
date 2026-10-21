@@ -1,6 +1,8 @@
 import { createBlackjack, handValue } from './blackjack-engine.js';
 import './blackjack.css';
 import { createRoundReporter } from '../round-results.js';
+import { BLACKJACK_WIN_RETURN } from './blackjack-math.js';
+import { ROUNDING_RULE } from '../rtp.js';
 
 const number = new Intl.NumberFormat('pl-PL');
 const outcomes = { blackjack: 'Blackjack! Idealne rozdanie.', win: 'Wygrywasz tę rundę!', push: 'Remis. Stawka wraca do Ciebie.', lose: 'Tym razem wygrywa krupier.', bust: 'Ponad 21. Wygrywa krupier.' };
@@ -33,9 +35,9 @@ export function mountBlackjack(root, player, { onRound } = {}) {
     <section class="blackjack" aria-label="Stół do blackjacka">
       <header class="bj-header"><div><span class="eyebrow">BETIFY ORIGINALS · GRY KARCIANE</span><h2 id="dialog-title">Blackjack<span class="mint">.</span></h2><p>Twój ruch. Twoje dwadzieścia jeden.</p></div><span class="bj-table-number">STÓŁ<br><strong>01</strong></span></header>
       <div class="bj-table">
-        <div class="bj-shoe" aria-hidden="true"><span>b♠</span><small>6 TALII</small></div>
+        <div class="bj-shoe" aria-hidden="true"><span>b♠</span><small>ZE ZWRACANIEM</small></div>
         <div class="bj-seat"><div class="bj-hand-heading"><h3>Krupier</h3><span id="bj-dealer-score" class="bj-score"></span></div><div id="bj-dealer" class="bj-hand" aria-label="Karty krupiera"></div></div>
-        <div class="bj-table-brand" aria-hidden="true"><span>♠</span><strong>BLACKJACK PAYS 3:2</strong><small>KRUPIER STOI NA 17 · 6 TALII</small></div>
+        <div class="bj-table-brand" aria-hidden="true"><span>♠</span><strong>BLACKJACK PAYS 3:2</strong><small>KRUPIER STOI NA 17 · ZE ZWRACANIEM</small></div>
         <div class="bj-seat"><div class="bj-hand-heading"><h3>Twoje karty</h3><span id="bj-player-score" class="bj-score"></span></div><div id="bj-player" class="bj-hand" aria-label="Twoje karty"></div></div>
         <div class="bj-result" role="status" aria-live="polite" aria-atomic="true"><strong id="bj-message"></strong><span id="bj-detail"></span></div>
       </div>
@@ -45,8 +47,8 @@ export function mountBlackjack(root, player, { onRound } = {}) {
         <p id="bj-error" class="bj-error" role="alert"></p>
         <div class="bj-actions"><button class="button button-primary" id="bj-deal">Rozdaj karty <span aria-hidden="true">↗</span></button><button class="button button-primary" id="bj-hit">Dobierz <span aria-hidden="true">＋</span></button><button class="button button-secondary" id="bj-stand">Pasuj <span aria-hidden="true">✓</span></button><button class="button button-secondary" id="bj-double" title="Podwój stawkę i dobierz dokładnie jedną kartę">Podwój ×2</button></div>
         <div class="bj-history" aria-label="Ostatnie wyniki"><span>OSTATNIE RUNDY</span><div id="bj-history">Jeszcze wszystko przed Tobą.</div></div>
-        <details class="bj-rules"><summary>Zasady stołu</summary><ul><li>As ma wartość 1 lub 11. Figury mają wartość 10.</li><li>Blackjack to as i karta o wartości 10 na starcie. Zysk: 3:2. Zwykła wygrana: 1:1. Remis zwraca stawkę.</li><li>Krupier dobiera do 16 i stoi na każdym 17, także miękkim.</li><li>Podwojenie tylko przy pierwszych dwóch kartach, jeśli wystarczy salda; potem jedna karta i pas.</li><li>Bez podziału par, ubezpieczenia i poddania. Karty tasujemy ponownie przed rundą, gdy w bucie zostaje mniej niż 60 kart.</li><li>Zamknięcie stołu automatycznie pasuje i rozlicza rundę. Odświeżenie strony podczas rundy oznacza utratę postawionych żetonów.</li></ul></details>
-        <p class="bj-footnote">Wyłącznie wirtualne żetony · Bez wpłat i wypłat</p>
+        <details class="bj-rules"><summary>Zasady stołu</summary><ul><li>As ma wartość 1 lub 11. Figury mają wartość 10.</li><li>Blackjack to as i karta o wartości 10 na starcie. Zysk: 3:2. Zwykła wygrana: ${BLACKJACK_WIN_RETURN.toLocaleString('pl-PL', { maximumFractionDigits: 15 })}× łącznie ze stawką. ${ROUNDING_RULE} Remis zwraca stawkę.</li><li>Krupier dobiera do 16 i stoi na każdym 17, także miękkim.</li><li>Podwojenie tylko przy pierwszych dwóch kartach, jeśli wystarczy salda; potem jedna karta i pas.</li><li>Bez podziału par, ubezpieczenia i poddania. Każda z 52 kart jest losowana niezależnie ze zwracaniem. RTP 99% przy optymalnych decyzjach i środkach na podwojenie; inne decyzje mogą obniżyć zwrot. RTP liczymy względem wszystkich stawek, włącznie z podwojeniami.</li><li>Zamknięcie stołu automatycznie pasuje i rozlicza rundę. Odświeżenie strony podczas rundy oznacza utratę postawionych żetonów.</li></ul></details>
+        <p class="bj-footnote">* RTP 99% przy strategii optymalnej i środkach na podwojenie. Wyłącznie wirtualne żetony.</p>
       </div>
     </section>`;
 
@@ -109,7 +111,7 @@ export function mountBlackjack(root, player, { onRound } = {}) {
     $('#bj-player-score').textContent = score(state.player);
     $('#bj-message').textContent = state.phase === 'dealing' ? 'Rozdawanie kart…' : state.phase === 'dealer' ? 'Ruch krupiera…' : busy && !finished ? 'Karta w drodze…' : finished ? outcomes[state.outcome] : playing ? 'Dobierasz czy pasujesz?' : 'Zajmij miejsce przy stole.';
     const net = state.payout - state.bet;
-    $('#bj-detail').textContent = finished ? `Bilans rundy: ${net > 0 ? '+' : ''}${number.format(net)} żetonów${state.payout ? ` · Zwrot łącznie: ${number.format(state.payout)}` : ''}` : state.phase === 'dealing' ? 'Karty trafiają kolejno do Ciebie i krupiera.' : state.phase === 'dealer' ? 'Krupier odkrywa kartę i dobiera do co najmniej 17.' : playing ? 'Zbliż się do 21. Nie przekraczaj granicy.' : 'Wybierz stawkę i rozdaj pierwsze karty.';
+    $('#bj-detail').textContent = finished ? `Bilans rundy: ${net > 0 ? '+' : ''}${number.format(net)} żetonów${state.payout ? ` · Zwrot łącznie: ${number.format(state.payout)}` : ''}` : state.phase === 'dealing' ? 'Karty trafiają kolejno do Ciebie i krupiera.' : state.phase === 'dealer' ? 'Krupier odkrywa kartę i dobiera do co najmniej 17.' : playing ? `Podpowiedź strategii: ${{ hit: 'dobierz', stand: 'pasuj', double: 'podwój' }[state.recommendation]}.` : 'Wybierz stawkę i rozdaj pierwsze karty.';
     $('.bj-result').dataset.result = finished ? state.outcome : '';
     $('#bj-in-play').textContent = active ? number.format(state.bet) : '—';
     $('#bj-rounds').textContent = rounds;

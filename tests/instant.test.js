@@ -1,10 +1,14 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { createInstantGame, diceOffer, minesOffer, goalOffer, payoutFor, drawInteger, PLINKO_PAYTABLES, PLINKO_ROWS_OPTIONS, plinkoPaytable, MAX_PAYOUT } from '../src/games/instant/engine.js';
+import { createInstantGame as createInstantEngine, diceOffer, minesOffer, goalOffer, payoutFor, drawInteger, PLINKO_PAYTABLES, PLINKO_ROWS_OPTIONS, plinkoPaytable, MAX_PAYOUT } from '../src/games/instant/engine.js';
 import { createPlayerStore, MAX_BALANCE, STORAGE_KEY } from '../src/store.js';
 import { games } from '../src/catalog.js';
 
 const ids = ['dice', 'mines', 'trader', 'goal', 'plinko'];
+// Fix only the rounding branch in gameplay fixtures; rtp.test verifies both
+// branches and the expectation of the production rounding implementation.
+const createInstantGame = (id, player, options = {}) => createInstantEngine(id, player, { round: (value) => Math.floor(value + 1e-8), ...options });
+
 function wallet(balance = 10000) {
   const data = new Map([[STORAGE_KEY, JSON.stringify({ balance, favorites: [] })]]);
   return createPlayerStore({ getItem: (key) => data.get(key) ?? null, setItem: (key, value) => data.set(key, value) });
@@ -128,12 +132,13 @@ test('Mines combinatorial odds, cashout and all-safe completion are exact', () =
   assert.equal(last.getState().payout, 2475);
 });
 
-test('Mines auto-cashes at the payout limit and never exceeds it', () => {
+test('Mines auto-cashes before the next payout would be truncated', () => {
   const game = createInstantGame('mines', wallet(), { randomInt: unshuffled });
   game.play(5000, { mines: 12 });
   for (let index = 12; index < 25 && game.getState().phase === 'playing'; index++) game.reveal(index);
   assert.equal(game.getState().phase, 'finished');
-  assert.equal(game.getState().payout, MAX_PAYOUT);
+  assert.ok(game.getState().payout < MAX_PAYOUT);
+  assert.equal(game.getState().payout, Math.floor(5000 * game.getState().multiplier + 1e-8));
 });
 
 test('Goal evaluates all 25 shot/keeper combinations and loses uncollected winnings', () => {
@@ -238,10 +243,9 @@ test('Plinko tables cover every bucket for all three colors and all board sizes'
 test('wallet cap, failed credit retry and duplicate settlement cannot create extra tokens', () => {
   const player = wallet(MAX_BALANCE);
   const game = createInstantGame('dice', player, { randomInt: () => 0 });
-  game.play(100);
+  assert.ok(game.play(100));
   assert.equal(player.getState().balance, MAX_BALANCE);
-  assert.equal(game.getState().payout, 100);
-  assert.equal(game.getState().capped, true);
+  assert.equal(game.getState().phase, 'ready');
   const other = wallet();
   let fail = true;
   const retried = createInstantGame('dice', { ...other, credit: (amount) => !fail && other.credit(amount) }, { randomInt: () => 0 });

@@ -5,6 +5,7 @@ import { animatePlinko, plinkoPeg, plinkoSlotX, PLINKO_BOARD } from './plinko-mo
 import './plinko.css';
 import { plinkoGeometry } from './plinko-physics.js';
 import { createRoundReporter } from '../../round-results.js';
+import { payoutLabel } from '../../rtp.js';
 
 const format = new Intl.NumberFormat('pl-PL');
 const number = (value, digits = 2) => value.toLocaleString('pl-PL', { minimumFractionDigits: digits, maximumFractionDigits: digits });
@@ -55,7 +56,7 @@ export function mountInstant(root, player, id, { onRound } = {}) {
       </div><div class="ig-offer"></div>${id === 'plinko' ? '<details class="ig-paytable"><summary>Tabela mnożników (od lewej)</summary><ol></ol></details>' : ''}<button class="button button-primary ig-play" data-ig="play">${text.action} ↗</button>
       ${id === 'plinko' ? '<div class="ig-plinko-drops" role="group" aria-label="Puść kulkę — wybierz ryzyko">' + Object.entries(riskNames).map(([risk, name]) => `<button type="button" data-plinko-risk="${risk}" aria-label="Puść kulkę: ${name.toLowerCase()} ryzyko"><i aria-hidden="true">●</i><strong>${name}</strong><small></small></button>`).join('') + '</div>' : ''}
       <button class="button button-primary ig-cashout" data-ig="cashout" hidden>Odbierz żetony</button><button class="button button-primary" data-ig="retry" hidden>Ponów rozliczenie</button>
-      <p class="ig-error" role="alert"></p><p class="ig-limit">Tylko wirtualne żetony.<br>Wypłata zawiera stawkę. Kwoty zaokrąglamy w dół.</p>
+      <p class="ig-error" role="alert"></p><p class="ig-limit">Tylko wirtualne żetony.<br>Wypłata zawiera stawkę. Ułamki zaokrąglamy losowo z zachowaniem średniej.</p>
     </aside></div></section>`;
   const $ = (selector) => root.querySelector(selector);
   const options = () => ({ threshold: Number($('#ig-threshold')?.value || 50), mines: Number($('#ig-mines')?.value || 3),
@@ -128,7 +129,7 @@ export function mountInstant(root, player, id, { onRound } = {}) {
     $('[data-stat="multiplier"]').textContent = times(shownMultiplier);
     $('[data-stat="multiplier"]').parentElement.firstChild.textContent = state.phase === 'finished' ? 'Ostatni mnożnik' : 'Mnożnik';
     const payout = state.phase === 'finished' ? state.payout : playing ? state.availablePayout : settling ? 0 : id === 'dice' || id === 'trader' ? Number.isSafeInteger(bet) && bet >= 10 && bet <= 5000 ? payoutFor(bet, shownMultiplier) : 0 : 0;
-    $('[data-stat="payout"]').textContent = format.format(payout);
+    $('[data-stat="payout"]').textContent = state.phase === 'finished' || !payout ? format.format(payout) : payoutLabel((playing ? state.bet : bet) * shownMultiplier);
     $('[data-payout-label]').firstChild.textContent = state.phase === 'finished' ? 'Wypłacono' : playing ? 'Do odebrania' : 'Wypłata po trafieniu';
     $('.ig-setup').querySelectorAll('input, select, button').forEach((node) => { node.disabled = busy || playing || settling; });
     $('[data-ig="play"]').hidden = id === 'plinko' || playing || settling;
@@ -136,10 +137,10 @@ export function mountInstant(root, player, id, { onRound } = {}) {
     $('[data-ig="play"]').textContent = `${state.phase === 'finished' ? 'Zagraj ponownie' : text.action} ↗`;
     $('[data-ig="cashout"]').hidden = !playing || !['mines', 'goal'].includes(id);
     $('[data-ig="cashout"]').disabled = busy || !state.wins;
-    $('[data-ig="cashout"]').textContent = state.wins ? `Odbierz ${format.format(state.availablePayout)} żetonów` : 'Odbierz po trafieniu';
+    $('[data-ig="cashout"]').textContent = state.wins ? `Odbierz ${payoutLabel(state.bet * state.multiplier)} żetonów` : 'Odbierz po trafieniu';
     $('[data-ig="retry"]').hidden = !settling;
     $('[data-ig="retry"]').disabled = busy;
-    const offerText = id === 'dice' ? `Szansa trafienia: ${percent(offer.probability)} · mnożnik nowego rzutu ${times(offer.multiplier)} · wypłata ${Number.isSafeInteger(bet) && bet >= 10 && bet <= 5000 ? format.format(payoutFor(bet, offer.multiplier)) : '—'}` : id === 'trader' ? '50% na każdy kierunek · trafienie 1,98×' : id === 'mines' ? playing ? `Diamenty: ${state.wins}/${25 - state.mines} · szansa następnego: ${percent(offer.nextProbability)} · kolejny mnożnik ${times(minesOffer(state.mines, state.wins + 1, state.bet)?.multiplier || state.multiplier)}` : `${25 - options().mines} diamentów · ${options().mines} min` : id === 'goal' ? playing ? `${state.wins}/${GOAL_SHOTS} goli · szansa strzału 80% · po kolejnym golu ${times(goalOffer(state.wins, state.bet).nextMultiplier)}` : 'Nowa seria: do 10 goli · szansa strzału 80% · po pierwszym golu 1,2375×' : 'Wybierz kolor, aby puścić kulkę';
+    const offerText = id === 'dice' ? `Szansa trafienia: ${percent(offer.probability)} · mnożnik nowego rzutu ${times(offer.multiplier)} · wypłata ${Number.isSafeInteger(bet) && bet >= 10 && bet <= 5000 ? payoutLabel(bet * offer.multiplier) : '—'}` : id === 'trader' ? '50% na każdy kierunek · trafienie 1,98×' : id === 'mines' ? playing ? `Diamenty: ${state.wins}/${25 - state.mines} · szansa następnego: ${percent(offer.nextProbability)} · kolejny mnożnik ${times(minesOffer(state.mines, state.wins + 1, state.bet)?.multiplier || state.multiplier)}` : `${25 - options().mines} diamentów · ${options().mines} min` : id === 'goal' ? playing ? `${state.wins}/${GOAL_SHOTS} goli · szansa strzału 80% · po kolejnym golu ${times(goalOffer(state.wins, state.bet).nextMultiplier)}` : 'Nowa seria: do 10 goli · szansa strzału 80% · po pierwszym golu 1,2375×' : 'Wybierz kolor, aby puścić kulkę';
     $('.ig-offer').textContent = offerText;
     if (id === 'plinko') {
       const table = plinkoPaytable(options().risk, options().rows);
@@ -163,7 +164,7 @@ export function mountInstant(root, player, id, { onRound } = {}) {
     closeHelp?.();
     const rulePages = id === 'plinko' ? text.rules.match(/<p>.*?<\/p>/g) : [text.rules];
     closeHelp = showGameHelp(`${text.title} — zasady`, [...rulePages,
-      '<p>Stawka: 10–5 000 całkowitych wirtualnych żetonów. Wypłaty zawierają stawkę i są zaokrąglane w dół. Limit wypłaty: 1 000 000, limit mnożnika serii: 1 000×. Wypłatę może ograniczyć wolne miejsce w portfelu (limit salda 1 miliard).</p><p>Przy zwykłym wyjściu odbieramy wygraną z aktywnej serii Mines/Goal, a przed pierwszym trafieniem zwracamy stawkę. Gry jednorundowe rozliczamy przed animacją. Reset kończy grę i ustawia saldo 10 000. Awaryjne zamknięcie może uniemożliwić rozliczenie serii.</p>']);
+      '<p>Stawka: 10–5 000 całkowitych wirtualnych żetonów. RTP 99%. Wypłaty zawierają stawkę. Ułamki zaokrąglamy losowo do sąsiednich całych żetonów z zachowaniem średniej; pokazujemy zakres. Limit wypłaty: 1 000 000, limit mnożnika serii: 1 000×. Przed przyjęciem stawki sprawdzamy miejsce na pełną wypłatę w portfelu (saldo do 1 miliarda). Przed kolejnym krokiem, który wymagałby obcięcia wygranej do limitu, odbieramy bieżącą pełną wypłatę.</p><p>Przy zwykłym wyjściu odbieramy wygraną z aktywnej serii Mines/Goal, a przed pierwszym trafieniem zwracamy stawkę. Gry jednorundowe rozliczamy przed animacją. Reset kończy grę i ustawia saldo 10 000. Awaryjne zamknięcie może uniemożliwić rozliczenie serii.</p>']);
   }
   async function act(action, value) {
     if (busy || disposed) return;

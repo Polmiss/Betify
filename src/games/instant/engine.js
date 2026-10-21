@@ -1,5 +1,7 @@
 import { MAX_BALANCE } from '../../store.js';
-import { simulatePlinko, PLINKO_ROWS, PLINKO_ROWS_OPTIONS } from './plinko-physics.js';
+import { PLINKO_ROWS, PLINKO_ROWS_OPTIONS } from './plinko-physics.js';
+import { plinkoFlight, PLINKO_RELEASE_COUNT } from './plinko-release.js';
+import { TARGET_RTP, uniformInteger, roundPayout } from '../../rtp.js';
 import { PLINKO_TABLES, plinkoPaytable } from './plinko-tables.js';
 export { PLINKO_ROWS, PLINKO_ROWS_OPTIONS, plinkoPaytable };
 
@@ -10,42 +12,36 @@ export const MAX_MULTIPLIER = 1000;
 export const GOAL_SHOTS = 10;
 export const PLINKO_PAYTABLES = PLINKO_TABLES[PLINKO_ROWS];
 
-export function drawInteger(size, random = globalThis.crypto) {
-  if (!Number.isSafeInteger(size) || size < 1 || size > 2 ** 32) throw new Error('Nieprawidłowy zakres losowania.');
-  const sample = new Uint32Array(1);
-  const cutoff = 2 ** 32 - (2 ** 32 % size);
-  do { random.getRandomValues(sample); } while (sample[0] >= cutoff);
-  return sample[0] % size;
-}
+export const drawInteger = uniformInteger;
 
-const cap = (value, bet) => Math.min(value, MAX_MULTIPLIER, bet ? MAX_PAYOUT / bet : MAX_MULTIPLIER);
 export const payoutFor = (bet, multiplier) => Math.min(MAX_PAYOUT, Math.floor(bet * multiplier + 1e-8));
 
 export function diceOffer(threshold, direction) {
   if (!Number.isInteger(threshold) || threshold < 2 || threshold > 98 || !['under', 'over'].includes(direction)) return null;
   const probability = (direction === 'under' ? threshold : 100 - threshold) / 100;
-  return { probability, multiplier: 0.99 / probability };
+  return { probability, multiplier: TARGET_RTP / probability };
 }
 
 export function minesOffer(mines, revealed, bet = 0) {
   if (!Number.isInteger(mines) || mines < 1 || mines > 24 || !Number.isInteger(revealed) || revealed < 0 || revealed > 25 - mines) return null;
   let probability = 1;
   for (let i = 0; i < revealed; i++) probability *= (25 - mines - i) / (25 - i);
-  return { probability, multiplier: revealed ? cap(0.99 / probability, bet) : 1,
+  return { probability, multiplier: revealed ? TARGET_RTP / probability : 1,
     nextProbability: revealed < 25 - mines ? (25 - mines - revealed) / (25 - revealed) : 0 };
 }
 
 export function goalOffer(wins, bet = 0) {
-  return { probability: 0.8, multiplier: wins ? cap(0.99 / 0.8 ** wins, bet) : 1,
-    nextMultiplier: cap(0.99 / 0.8 ** (wins + 1), bet) };
+  return { probability: 0.8, multiplier: wins ? TARGET_RTP / 0.8 ** wins : 1,
+    nextMultiplier: TARGET_RTP / 0.8 ** (wins + 1) };
 }
 
-export function createInstantGame(id, player, { randomInt = drawInteger } = {}) {
+export function createInstantGame(id, player, { randomInt = drawInteger, round = roundPayout } = {}) {
   if (!['dice', 'mines', 'trader', 'goal', 'plinko'].includes(id)) throw new Error('Nieznana gra.');
   let state = { id, phase: 'ready', bet: 0, multiplier: 1, payout: 0, outcome: null, result: null, history: [] };
   let bombs = [];
   let pending;
   let closed = false;
+  const limit = (bet) => Math.min(MAX_MULTIPLIER, MAX_PAYOUT / bet);
   function random(size) {
     const value = randomInt(size);
     if (!Number.isInteger(value) || value < 0 || value >= size) throw new Error('Nieprawidłowy wynik losowania.');
@@ -57,6 +53,7 @@ export function createInstantGame(id, player, { randomInt = drawInteger } = {}) 
     if (!Number.isSafeInteger(bet) || bet < MIN_BET || bet > MAX_BET) return 'Wpisz całkowitą stawkę od 10 do 5 000 żetonów.';
     player.refresh?.(false);
     if (player.getState().balance < bet) return 'Za mało żetonów. Możesz zresetować saldo w nagłówku.';
+    if (player.getState().balance - bet + MAX_PAYOUT > MAX_BALANCE) return 'Za mało miejsca na pełną wypłatę w portfelu. Zresetuj saldo.';
     return null;
   }
   function begin(bet, data = {}) {
@@ -67,7 +64,8 @@ export function createInstantGame(id, player, { randomInt = drawInteger } = {}) 
   function retry() {
     if (state.phase !== 'settling' || !pending) return 'Brak wypłaty do rozliczenia.';
     player.refresh?.(false);
-    const payout = Math.max(0, Math.min(pending.payout, MAX_BALANCE - player.getState().balance));
+    const payout = pending.payout;
+    if (player.getState().balance + payout > MAX_BALANCE) return 'Brak miejsca na pełną wypłatę w portfelu.';
     if (payout > 0 && !player.credit(payout)) return 'Nie udało się rozliczyć wypłaty. Ponów rozliczenie.';
     state.phase = 'finished';
     state.outcome = pending.outcome;
@@ -85,7 +83,7 @@ export function createInstantGame(id, player, { randomInt = drawInteger } = {}) 
   }
   function cashout() {
     if (state.phase !== 'playing' || !['mines', 'goal'].includes(id) || state.wins < 1) return 'Najpierw traf przynajmniej raz.';
-    return finish('cashout', payoutFor(state.bet, state.multiplier));
+    return finish('cashout', round(state.bet * state.multiplier));
   }
   function play(bet, options = {}) {
     const error = validate(bet);
@@ -97,8 +95,9 @@ export function createInstantGame(id, player, { randomInt = drawInteger } = {}) 
       if (!offer) return 'Wybierz próg 2–98 i kierunek zakładu.';
       const roll = random(10000);
       const won = direction === 'under' ? roll < threshold * 100 : roll >= threshold * 100;
+      const payout = won ? round(bet * offer.multiplier) : 0;
       const debitError = begin(bet, { result: { roll, threshold, direction }, multiplier: offer.multiplier });
-      return debitError || finish(won ? 'win' : 'lose', won ? payoutFor(bet, offer.multiplier) : 0);
+      return debitError || finish(won ? 'win' : 'lose', payout);
     }
     if (id === 'trader') {
       const { direction = 'up' } = options;
@@ -108,18 +107,21 @@ export function createInstantGame(id, player, { randomInt = drawInteger } = {}) 
       const change = 10 + random(41);
       const price = Math.round(previous * (1 + (movement === 'up' ? 1 : -1) * change / 1000) * 100) / 100;
       const prices = [...(state.result?.prices || [1000]), price].slice(-24);
-      const debitError = begin(bet, { result: { direction, movement, previous, price, prices }, multiplier: 1.98 });
-      return debitError || finish(direction === movement ? 'win' : 'lose', direction === movement ? payoutFor(bet, 1.98) : 0);
+      const multiplier = TARGET_RTP / .5;
+      const payout = direction === movement ? round(bet * multiplier) : 0;
+      const debitError = begin(bet, { result: { direction, movement, previous, price, prices }, multiplier });
+      return debitError || finish(direction === movement ? 'win' : 'lose', payout);
     }
     if (id === 'plinko') {
       const { risk = 'low', rows = PLINKO_ROWS } = options;
       if (!Object.hasOwn(PLINKO_PAYTABLES, risk)) return 'Wybierz niskie, średnie albo wysokie ryzyko.';
       if (!PLINKO_ROWS_OPTIONS.includes(rows)) return 'Wybierz 8, 12 albo 16 rzędów.';
-      const flight = simulatePlinko(random(2 ** 32), rows);
+      if (Math.ceil(bet * Math.max(...plinkoPaytable(risk, rows))) > MAX_PAYOUT) return 'Zmniejsz stawkę, aby każda pełna wypłata mieściła się w limicie.';
+      const flight = plinkoFlight(random(PLINKO_RELEASE_COUNT), rows);
       const { slot, landingX } = flight;
       const multiplier = plinkoPaytable(risk, rows)[slot];
+      const payout = round(bet * multiplier);
       const debitError = begin(bet, { result: { flight, slot, landingX, risk, rows }, multiplier });
-      const payout = payoutFor(bet, multiplier);
       return debitError || finish(payout > bet ? 'win' : payout === bet ? 'push' : 'lose', payout);
     }
     if (id === 'mines') {
@@ -140,7 +142,7 @@ export function createInstantGame(id, player, { randomInt = drawInteger } = {}) 
     if (bombs.includes(index)) { state.hit = index; return finish('lose', 0); }
     state.wins++;
     state.multiplier = minesOffer(state.mines, state.wins, state.bet).multiplier;
-    if (state.wins === 25 - state.mines || state.multiplier >= cap(Infinity, state.bet)) return cashout();
+    if (state.wins === 25 - state.mines || minesOffer(state.mines, state.wins + 1).multiplier > limit(state.bet)) return cashout();
     return null;
   }
   function shoot(zone) {
@@ -153,7 +155,7 @@ export function createInstantGame(id, player, { randomInt = drawInteger } = {}) 
     if (!scored) return finish('lose', 0);
     state.wins++;
     state.multiplier = goalOffer(state.wins, state.bet).multiplier;
-    if (state.wins === GOAL_SHOTS || state.multiplier >= cap(Infinity, state.bet)) return cashout();
+    if (state.wins === GOAL_SHOTS || goalOffer(state.wins).nextMultiplier > limit(state.bet)) return cashout();
     return null;
   }
   return {

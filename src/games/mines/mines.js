@@ -2,6 +2,7 @@ import { createMines } from './engine.js';
 import { showGameHelp } from '../../game-help.js';
 import './mines.css';
 import { createRoundReporter } from '../../round-results.js';
+import { payoutLabel } from '../../rtp.js';
 
 const format = new Intl.NumberFormat('pl-PL');
 const times = (n) => n === null ? '—' : `${n.toFixed(n >= 100 ? 2 : 3).replace('.', ',')}×`;
@@ -45,7 +46,7 @@ export function mountMines(root, player, { onRound } = {}) {
     $('.mn-chance').textContent = `Szansa następnego diamentu: ${percent(state.nextChance)}`;
     $('.mn-found').textContent = `${state.opened.length} / ${25 - state.mineCount}`;
     $('.mn-multiplier').textContent = times(state.effectiveMultiplier);
-    $('.mn-payout').textContent = format.format(finished ? state.payout : state.availablePayout);
+    $('.mn-payout').textContent = (state.phase === 'finished' ? format.format(state.payout) : state.opened.length ? payoutLabel(state.bet * state.multiplier) : '0');
     $('.mn-next').textContent = state.nextMultiplier === null ? 'Wszystkie odkryte' : times(state.effectiveNextMultiplier);
     $('.mn-message').textContent = busy ? 'Odkrywanie pola…' : state.outcome === 'mine' ? `Mina! Bilans rundy: −${format.format(state.bet)} żetonów.` : ['cashout', 'cleared', 'limit'].includes(state.outcome) ? `${state.outcome === 'cleared' ? 'Wszystkie diamenty! ' : state.outcome === 'limit' ? 'Limit wygranej! ' : ''}Odebrano ${format.format(state.payout)} żetonów · Bilans: ${state.payout - state.bet >= 0 ? '+' : ''}${format.format(state.payout - state.bet)}` : playing ? state.opened.length ? 'Diament! Odkrywasz kolejne pole czy odbierasz?' : 'Wybierz pierwsze pole. Każde może kryć minę.' : 'Ustaw stawkę i liczbę min, a potem rozpocznij rundę.';
     for (const [index, button] of cells.entries()) {
@@ -71,7 +72,7 @@ export function mountMines(root, player, { onRound } = {}) {
     $('[data-mn="random"]').hidden = !playing && !busy;
     $('[data-mn="cashout"]').disabled = busy || !playing || state.opened.length === 0;
     $('[data-mn="random"]').disabled = busy || !playing;
-    $('[data-mn="cashout"]').textContent = state.opened.length ? `Odbierz ${format.format(state.availablePayout)} żetonów` : 'Odbierz po odkryciu';
+    $('[data-mn="cashout"]').textContent = state.opened.length ? `Odbierz ${payoutLabel(state.bet * state.multiplier)} żetonów` : 'Odbierz po odkryciu';
     $('.mn-presets').hidden = playing || busy;
     $('.mn-error').textContent = error;
   }
@@ -83,8 +84,8 @@ export function mountMines(root, player, { onRound } = {}) {
     closeHelp?.();
     closeHelp = showGameHelp('Mines — zasady', [
       '<p>Plansza ma 25 pól (5 × 5). Przed rundą wybierasz stawkę 10–5 000 żetonów oraz od 1 do 24 min. Układ losujemy raz, przed pierwszym odkryciem. Miny nie zmieniają położenia. Pierwsze pole również może być miną.</p><p>Diament zwiększa mnożnik. Mina natychmiast kończy rundę i traci całą postawioną stawkę oraz nieodebraną wygraną.</p>',
-      '<p>Po przynajmniej jednym diamencie możesz odebrać żetony. Odkrycie wszystkich bezpiecznych pól kończy rundę z automatyczną wypłatą. Losowe pole wybiera spośród wszystkich nieodkrytych pól — może trafić w minę.</p><p>Szansa następnego diamentu to liczba pozostałych diamentów podzielona przez liczbę zakrytych pól.</p>',
-      '<p>Mnożnik Betify: 0,99 × C(25, k) / C(25 − m, k), gdzie m to liczba min, a k to liczba odkrytych diamentów. C oznacza liczbę kombinacji. Współczynnik 0,99 jest uwzględniany raz.</p><p>Wypłata zawiera stawkę i jest zaokrąglana w dół do całych żetonów. Limit: 1 000 000 żetonów (także limit portfela). Po osiągnięciu limitu wypłacamy automatycznie.</p>',
+      '<p>Po przynajmniej jednym diamencie możesz odebrać żetony. Odkrycie wszystkich bezpiecznych pól kończy rundę z automatyczną wypłatą. Zanim następny diament wymagałby obcięcia wypłaty do 1 000 000, odbieramy pełną bieżącą wygraną. Losowe pole wybiera spośród wszystkich nieodkrytych pól — może trafić w minę.</p><p>Szansa następnego diamentu to liczba pozostałych diamentów podzielona przez liczbę zakrytych pól.</p>',
+      '<p>Mnożnik Betify: 0,99 × C(25, k) / C(25 − m, k), gdzie m to liczba min, a k to liczba odkrytych diamentów. C oznacza liczbę kombinacji. Współczynnik 0,99 jest uwzględniany raz.</p><p>RTP 99%. Wypłata zawiera stawkę. Ułamki zaokrąglamy losowo do sąsiednich całych żetonów z zachowaniem średniej; panel pokazuje zakres.</p>',
       '<p>Nie można zmieniać stawki ani liczby min w aktywnej rundzie. Przy zwykłym opuszczeniu gry odbieramy bieżącą wygraną; jeśli jeszcze nie odkryto żadnego pola, zwracamy stawkę. Awaryjne zamknięcie przeglądarki może uniemożliwić rozliczenie.</p><p>Reset salda rozlicza i zamyka rundę, przerywa animacje i przywraca dokładnie 10 000 żetonów. Wyłącznie wirtualna rozgrywka.</p>',
     ]);
   }

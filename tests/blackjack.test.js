@@ -1,13 +1,13 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { createBlackjack, createShoe, handValue } from '../src/games/blackjack-engine.js';
+import { createBlackjack, drawBlackjackCard, handValue } from '../src/games/blackjack-engine.js';
 import { createPlayerStore, MAX_BALANCE, STORAGE_KEY } from '../src/store.js';
 
 const card = (rank) => ({ rank: String(rank), suit: '♠' });
 function table(draws, balance = 10000) {
   const storage = { getItem: () => JSON.stringify({ balance }), setItem() {} };
   const player = createPlayerStore(storage);
-  const game = createBlackjack(player, { shoeFactory: () => [...Array.from({ length: 60 }, () => card(10)), ...draws.map(card).reverse()] });
+  const game = createBlackjack(player, { round: (value) => Math.ceil(value - 1e-8), shoeFactory: () => [...Array.from({ length: 60 }, () => card(10)), ...draws.map(card).reverse()] });
   return { player, game };
 }
 
@@ -17,13 +17,12 @@ test('aces switch between 1 and 11, including multiple aces', () => {
   assert.deepEqual(handValue(['A', 'A', 'A', 'K'].map(card)), { total: 13, soft: false });
 });
 
-test('six-deck shoe has the expected cards and copies', () => {
-  const shoe = createShoe();
-  assert.equal(shoe.length, 312);
-  const counts = new Map();
-  for (const item of shoe) counts.set(item.rank + item.suit, (counts.get(item.rank + item.suit) || 0) + 1);
-  assert.equal(counts.size, 52);
-  assert.ok([...counts.values()].every((count) => count === 6));
+test('independent draws map all 52 cards uniformly and allow replacement', () => {
+  const cards = Array.from({ length: 52 }, (_, index) => drawBlackjackCard({ getRandomValues: (array) => { array[0] = index; } }));
+  assert.equal(new Set(cards.map((card) => card.rank + card.suit)).size, 52);
+  assert.equal(cards.filter((card) => card.rank === 'A').length, 4);
+  const random = { getRandomValues: (array) => { array[0] = 0; } };
+  assert.deepEqual(drawBlackjackCard(random), drawBlackjackCard(random));
 });
 
 test('stakes reject invalid amounts and insufficient funds without debiting', () => {
@@ -110,7 +109,7 @@ test('ordinary loss is settled once and dealer does not draw on hard 17', () => 
   assert.equal(player.getState().balance, 9900);
 });
 
-test('three-card 21 automatically stands and pays 1:1', () => {
+test('three-card 21 automatically stands and pays the upper rounding branch', () => {
   const { game, player } = table([5, 10, 6, 8, 'K']);
   game.start(100); game.hit();
   assert.equal(game.getState().outcome, 'win');
@@ -151,11 +150,11 @@ test('wallet limit rejects rounds or doubles that cannot be paid', () => {
   const { game, player } = table([5, 10, 6, 7], MAX_BALANCE - 100);
   assert.equal(typeof game.start(100), 'string');
   assert.equal(player.getState().balance, MAX_BALANCE - 100);
-  const near = table([5, 10, 6, 7], MAX_BALANCE - 150);
+  const near = table([5, 10, 6, 7], MAX_BALANCE - 200);
   assert.equal(near.game.start(100), null);
-  assert.equal(near.game.getState().canDouble, false);
+  assert.equal(near.game.getState().canDouble, true);
   near.game.stand();
-  assert.equal(near.player.getState().balance, MAX_BALANCE - 250);
+  assert.equal(near.player.getState().balance, MAX_BALANCE - 300);
 });
 
 test('settled balances persist through store recreation', () => {
@@ -249,4 +248,22 @@ test('closing during opening or dealer animation settles exactly once', () => {
     game.stand(); game.dealerStep(); game.resolveOpening();
     assert.equal(player.getState().balance, 10100);
   }
+});
+
+test('failed settlement freezes rounding until retry, without dealing extra cards', () => {
+  const player = createPlayerStore({ getItem: () => null, setItem() {} });
+  let fail = true, rounds = 0;
+  const game = createBlackjack({ ...player, credit: (amount) => !fail && player.credit(amount) }, {
+    shoeFactory: () => [7, 8, 10, 10].map(card),
+    round: (amount) => { rounds++; return Math.ceil(amount); },
+  });
+  game.start(100);
+  assert.throws(() => game.stand());
+  assert.equal(rounds, 1);
+  assert.equal(game.hit(), false);
+  fail = false;
+  game.stand();
+  assert.equal(rounds, 1);
+  assert.equal(player.getState().balance, 10100);
+  game.stand(); assert.equal(rounds, 1);
 });

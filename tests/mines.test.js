@@ -1,7 +1,11 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { createMines, createBoard, calculateOdds, randomIndex, MAX_PAYOUT } from '../src/games/mines/engine.js';
+import { createMines as createMinesEngine, createBoard, calculateOdds, randomIndex, MAX_PAYOUT } from '../src/games/mines/engine.js';
 import { createPlayerStore, MAX_BALANCE } from '../src/store.js';
+
+// Fix only the rounding branch in gameplay fixtures; rtp.test verifies both
+// branches and the expectation of the production rounding implementation.
+const createMines = (player, options = {}) => createMinesEngine(player, { round: (value) => Math.floor(value + 1e-8), ...options });
 
 function table({ balance = 10000, layout = [22, 23, 24], pick = () => 0 } = {}) {
   const player = createPlayerStore({ getItem: () => JSON.stringify({ balance }), setItem() {} });
@@ -138,8 +142,9 @@ test('the payout cap ends the round automatically', () => {
   game.start(5000, 12);
   for (let i = 0; i < 13 && game.getState().phase === 'playing'; i++) game.reveal(i);
   assert.equal(game.getState().outcome, 'limit');
-  assert.equal(game.getState().payout, MAX_PAYOUT);
-  assert.equal(player.getState().balance, 1005000);
+  assert.ok(game.getState().payout < MAX_PAYOUT);
+  assert.equal(game.getState().payout, Math.floor(5000 * game.getState().multiplier + 1e-8));
+  assert.equal(player.getState().balance, 5000 + game.getState().payout);
 });
 
 test('closing refunds untouched rounds and cashes out discovered gems exactly once', () => {
@@ -168,8 +173,8 @@ test('snapshots do not leak or mutate mine layout, and bad layouts never debit',
 
 test('cashout respects the wallet cap, and failed credit remains retryable', () => {
   const near = table({ balance: MAX_BALANCE - 1 });
-  near.game.start(100, 3); near.game.reveal(0); near.game.cashout();
-  assert.equal(near.player.getState().balance, MAX_BALANCE);
+  assert.ok(near.game.start(100, 3));
+  assert.equal(near.player.getState().balance, MAX_BALANCE - 1);
   const real = table();
   let blocked = true;
   const wallet = { ...real.player, credit: (value) => blocked ? false : real.player.credit(value) };
