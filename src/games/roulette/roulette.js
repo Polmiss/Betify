@@ -161,7 +161,7 @@ export function mountRoulette(root, { player, onRound }) {
     try {
       const pocket = drawPocket();
       // Prepare animation before accepting any stake; randomness failures cost nothing.
-      plan = { ...createSpinPlan(pocket, wheelAngle, ballAngle, undefined, ballRadius), duration: SPIN_MS };
+      plan = createSpinPlan(pocket, wheelAngle, ballAngle, undefined, ballRadius, SPIN_MS);
       const bets = rack.totals();
       result = calculateResult({}, pocket);
       if (rack.size) {

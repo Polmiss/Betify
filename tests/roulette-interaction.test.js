@@ -93,3 +93,41 @@ test('successive spin plans vary duration, speed, drop and landing location', ()
   assert.notEqual(a.power, b.power);
   assert.ok(Math.abs(sampleSpin(a, a.landAt - .000001).ballAngle - sampleSpin(a, a.landAt + .000001).ballAngle) < .01);
 });
+
+test('five-second spins scale travel speed and reserve time for the pocket landing', () => {
+  for (const randomValue of [.1, .55, .93]) {
+    const normal = createSpinPlan(17, 0, 0, () => randomValue);
+    const fast = createSpinPlan(17, 0, 0, () => randomValue, 140, 5000);
+    assert.equal(fast.duration, 5000);
+    assert.ok(Math.abs(fast.wheelEnd) < Math.abs(normal.wheelEnd));
+    assert.ok(Math.abs(fast.ballLanding) < Math.abs(normal.ballLanding));
+    assert.ok((1 - fast.landAt) * fast.duration >= 900);
+    assert.ok((fast.landAt - fast.dropAt) * fast.duration >= 1000);
+    const end = sampleSpin(fast, 1);
+    const relative = ((end.ballAngle - end.wheelAngle - WHEEL.indexOf(17) * 360 / 37 + 180) % 360 + 360) % 360 - 180;
+    assert.ok(Math.abs(relative) < 1.51);
+  }
+  for (const duration of [0, 500, NaN, Infinity]) assert.throws(() => createSpinPlan(17, 0, 0, () => .5, 140, duration));
+});
+
+test('capture matches angular and radial velocity without a snap at 30, 60 or 144 Hz', () => {
+  for (const randomValue of [.1, .55, .93]) for (const pocket of WHEEL) {
+    const plan = createSpinPlan(pocket, 1589, -4790, () => randomValue, 140, 5000);
+    const epsilon = 1e-6;
+    const before = sampleSpin(plan, plan.landAt - epsilon);
+    const center = sampleSpin(plan, plan.landAt);
+    const after = sampleSpin(plan, plan.landAt + epsilon);
+    const angularBefore = (center.ballAngle - before.ballAngle) / epsilon;
+    const angularAfter = (after.ballAngle - center.ballAngle) / epsilon;
+    const radialBefore = (center.radius - before.radius) / epsilon;
+    const radialAfter = (after.radius - center.radius) / epsilon;
+    assert.ok(Math.abs(angularAfter - angularBefore) < .1, 'capture must preserve angular velocity');
+    assert.ok(Math.abs(radialAfter - radialBefore) < .1, 'capture must preserve radial velocity');
+    for (const fps of [30, 60, 144]) {
+      const step = 1000 / fps / plan.duration;
+      const penultimate = sampleSpin(plan, 1 - step);
+      const end = sampleSpin(plan, 1);
+      assert.ok(Math.hypot(end.x - penultimate.x, end.y - penultimate.y) < .1, 'the last frame must settle without snapping');
+    }
+  }
+});
