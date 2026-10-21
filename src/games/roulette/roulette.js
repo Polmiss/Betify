@@ -28,6 +28,7 @@ export function mountRoulette(root, { player, onRound }) {
   let selectedChip = 100;
   let allInSelected = false;
   let spinning = false;
+  let releaseBalance;
   let settled = false;
   let wheelAngle = 0;
   let ballAngle = 0;
@@ -127,6 +128,7 @@ export function mountRoulette(root, { player, onRound }) {
     paint(sampleSpin(plan, 1));
     spinning = false;
     settled = true;
+    releaseBalance?.();
     reportResult();
     root.classList.remove('rt-spinning');
     const resultNumber = find('.rt-result-number');
@@ -147,9 +149,10 @@ export function mountRoulette(root, { player, onRound }) {
   function spin() {
     if (spinning) return;
     spinning = true;
+    releaseBalance = player.beginAnimation?.();
     settled = false;
     try { result = settleRound(player, rack.totals(), drawPocket()); }
-    catch (error) { spinning = false; message(error.message, true); updateBalance(); renderBets(); return; }
+    catch (error) { spinning = false; releaseBalance?.(); message(error.message, true); updateBalance(); renderBets(); return; }
     roundReporter.begin();
     previousStack = rack.snapshot();
     root.classList.add('rt-spinning');
@@ -252,6 +255,7 @@ export function mountRoulette(root, { player, onRound }) {
     cancelAnimationFrame(frame);
     events.abort();
     unsubscribe();
+    releaseBalance?.();
     reportResult();
     root.classList.remove('roulette-game');
   };

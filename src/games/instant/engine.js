@@ -1,16 +1,14 @@
 import { MAX_BALANCE } from '../../store.js';
+import { simulatePlinko, PLINKO_ROWS, PLINKO_ROWS_OPTIONS } from './plinko-physics.js';
+import { PLINKO_TABLES, plinkoPaytable } from './plinko-tables.js';
+export { PLINKO_ROWS, PLINKO_ROWS_OPTIONS, plinkoPaytable };
 
 export const MIN_BET = 10;
 export const MAX_BET = 5000;
 export const MAX_PAYOUT = 1000000;
 export const MAX_MULTIPLIER = 1000;
 export const GOAL_SHOTS = 10;
-export const PLINKO_ROWS = 12;
-// Symmetric payouts; binomial landing probabilities come from 12 fair left/right draws.
-export const PLINKO_PAYTABLES = {
-  low: [8, 3, 1.5, 1.3, 1.1, 0.9, 0.7, 0.9, 1.1, 1.3, 1.5, 3, 8],
-  high: [100, 15, 5, 4.3, 0.5, 0.2, 0.1, 0.2, 0.5, 4.3, 5, 15, 100],
-};
+export const PLINKO_PAYTABLES = PLINKO_TABLES[PLINKO_ROWS];
 
 export function drawInteger(size, random = globalThis.crypto) {
   if (!Number.isSafeInteger(size) || size < 1 || size > 2 ** 32) throw new Error('Nieprawidłowy zakres losowania.');
@@ -114,12 +112,13 @@ export function createInstantGame(id, player, { randomInt = drawInteger } = {}) 
       return debitError || finish(direction === movement ? 'win' : 'lose', direction === movement ? payoutFor(bet, 1.98) : 0);
     }
     if (id === 'plinko') {
-      const { risk = 'low' } = options;
-      if (!Object.hasOwn(PLINKO_PAYTABLES, risk)) return 'Wybierz niskie albo wysokie ryzyko.';
-      const path = Array.from({ length: PLINKO_ROWS }, () => random(2));
-      const slot = path.reduce((sum, step) => sum + step, 0);
-      const multiplier = PLINKO_PAYTABLES[risk][slot];
-      const debitError = begin(bet, { result: { path, slot, risk }, multiplier });
+      const { risk = 'low', rows = PLINKO_ROWS } = options;
+      if (!Object.hasOwn(PLINKO_PAYTABLES, risk)) return 'Wybierz niskie, średnie albo wysokie ryzyko.';
+      if (!PLINKO_ROWS_OPTIONS.includes(rows)) return 'Wybierz 8, 12 albo 16 rzędów.';
+      const flight = simulatePlinko(random(2 ** 32), rows);
+      const { slot, landingX } = flight;
+      const multiplier = plinkoPaytable(risk, rows)[slot];
+      const debitError = begin(bet, { result: { flight, slot, landingX, risk, rows }, multiplier });
       const payout = payoutFor(bet, multiplier);
       return debitError || finish(payout > bet ? 'win' : payout === bet ? 'push' : 'lose', payout);
     }

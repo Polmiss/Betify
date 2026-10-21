@@ -14,6 +14,7 @@ export function mountBlackjack(root, player, { onRound } = {}) {
   let countedRound = false;
   const history = [];
   let busy = false;
+  let releaseBalance;
   let disposed = false;
   let preview = null;
   const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
@@ -130,7 +131,7 @@ export function mountBlackjack(root, player, { onRound } = {}) {
     // Reveal the hole card first, then deal each extra card separately.
     if (state.phase === 'finished') preview = { ...state, phase: 'dealer', outcome: null };
     render();
-    if (!(await pause(state.phase === 'dealer' ? 700 : 500))) return;
+    if (!(await pause(state.phase === 'dealer' ? 700 : 600))) return;
     preview = null;
     while (!disposed && game.getState().phase === 'dealer') {
       game.dealerStep(); render();
@@ -150,6 +151,7 @@ export function mountBlackjack(root, player, { onRound } = {}) {
     error = '';
     if (!['bj-deal', 'bj-hit', 'bj-stand', 'bj-double'].includes(button.id)) return;
     busy = true;
+    releaseBalance = player.beginAnimation?.();
     try {
       if (button.id === 'bj-deal') {
         selectedBet = Number($('#bj-bet').value);
@@ -185,6 +187,7 @@ export function mountBlackjack(root, player, { onRound } = {}) {
       }
     } finally {
       busy = false;
+      releaseBalance?.();
       if (!disposed) {
         preview = null; render();
         if (error) $('#bj-bet').focus({ preventScroll: true });
@@ -207,6 +210,7 @@ export function mountBlackjack(root, player, { onRound } = {}) {
     for (const animation of animations) animation.cancel();
     animations.clear();
     game.stand();
+    releaseBalance?.();
     roundReporter.report(game.getState());
     root.removeEventListener('click', onClick);
     $('#bj-bet').removeEventListener('input', onBetInput);

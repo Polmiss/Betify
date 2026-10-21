@@ -1,8 +1,9 @@
-import { createInstantGame, diceOffer, minesOffer, goalOffer, payoutFor, PLINKO_PAYTABLES, PLINKO_ROWS, GOAL_SHOTS } from './engine.js';
+import { createInstantGame, diceOffer, minesOffer, goalOffer, payoutFor, plinkoPaytable, PLINKO_ROWS_OPTIONS, GOAL_SHOTS } from './engine.js';
 import { showGameHelp } from '../../game-help.js';
 import './instant.css';
 import { animatePlinko, plinkoPeg, plinkoSlotX, PLINKO_BOARD } from './plinko-motion.js';
 import './plinko.css';
+import { plinkoGeometry } from './plinko-physics.js';
 import { createRoundReporter } from '../../round-results.js';
 
 const format = new Intl.NumberFormat('pl-PL');
@@ -10,6 +11,7 @@ const number = (value, digits = 2) => value.toLocaleString('pl-PL', { minimumFra
 const times = (value) => `${number(value, 4)}×`;
 const percent = (value) => `${number(value * 100)}%`;
 const zoneNames = ['Lewy róg', 'Lewa strona', 'Środek', 'Prawa strona', 'Prawy róg'];
+const riskNames = { low: 'Niskie', medium: 'Średnie', high: 'Wysokie' };
 const copy = {
   dice: { title: 'Dice', subtitle: 'Wybierz swoją szansę.', action: 'Rzuć kośćmi', intro: 'Ustaw próg i wybierz kierunek zakładu.',
     rules: '<p>Losujemy jedną ze 10 000 równych wartości od 0,00 do 99,99. „Poniżej” wygrywa przy wyniku mniejszym od progu, „Od progu” przy wyniku równym progowi lub większym. Próg: 2–98.</p><p>Mnożnik: 0,99 / szansa. Szansa, mnożnik i wypłata po trafieniu są widoczne przed rzutem.</p>' },
@@ -20,7 +22,7 @@ const copy = {
   goal: { title: 'Goal', subtitle: 'Strzelaj. Trafiaj. Decyduj.', action: 'Rozpocznij serię', intro: 'Wybierz stawkę, a potem miejsce strzału.',
     rules: '<p>Wybierz jedno z pięciu miejsc strzału. Bramkarz niezależnie losuje jedno z nich, każde z szansą 20%. Zgodność oznacza obronę; pozostałe cztery miejsca oznaczają gola. Każdy strzał ma 80% szans powodzenia.</p><p>Po golu odbierz żetony lub kontynuuj. Obrona traci całą serię. Mnożnik po n golach: 0,99 / 0,8ⁿ. Po 10 golach automatycznie odbieramy wygraną. To własny demonstracyjny wariant Betify.</p>' },
   plinko: { title: 'Plinko', subtitle: 'Jedna kulka. Wiele dróg.', action: 'Puść kulkę', intro: 'Wybierz ryzyko i obserwuj drogę kulki do mnożnika.',
-    rules: '<p>Kulka przechodzi przez 12 rzędów kołków. Każdy krok to niezależne losowanie w lewo albo w prawo z szansą 50%. Liczba kroków w prawo wyznacza jedno z 13 pól końcowych. Środkowe pola występują częściej niż skrajne.</p><p>Wypłata to stawka razy mnożnik z wybranego poziomu ryzyka. Tabela jest widoczna na planszy przed grą. Niskie ryzyko: 0,7–8×, wysokie: 0,1–100×. Również przegrana może zwrócić część stawki. Animacja pokazuje wylosowaną drogę.</p>' },
+    rules: '<p>Wybierz stawkę i 8, 12 albo 16 rzędów. Zielony, żółty i czerwony przycisk od razu puszczają kulkę z niskim, średnim lub wysokim ryzykiem. Trzy tabele mnożników są widoczne pod kołkami przed zrzutem.</p><p>Losujemy pozycję i prędkość początkową. Dalej kulka porusza się pod wpływem stałej grawitacji, zderzeń z okrągłymi kołkami, prowadnicami i przegrodami. Przy zderzeniach traci energię. Nie wymuszamy kierunku w każdym rzędzie ani końcowego pola.</p><p>Wypłata to stawka razy mnożnik pola, do którego kulka rzeczywiście wpadła, z tabeli wybranego koloru. Tabele są własnym wariantem demonstracyjnym Betify. Zwrot mniejszy od stawki jest stratą. Kwoty zaokrąglamy w dół, limit wypłaty: 1 000 000 żetonów.</p>' },
 };
 
 export function mountInstant(root, player, id, { onRound } = {}) {
@@ -28,9 +30,11 @@ export function mountInstant(root, player, id, { onRound } = {}) {
   const roundReporter = createRoundReporter(onRound);
   const text = copy[id];
   let busy = false;
+  let releaseBalance;
   let disposed = false;
   let preview;
   let error = '';
+  let selectedRisk = 'low';
   let closeHelp;
   let timer;
   let resolveWait;
@@ -47,14 +51,15 @@ export function mountInstant(root, player, id, { onRound } = {}) {
       ${id === 'dice' ? '<label for="ig-threshold">Próg <output id="ig-threshold-label">50</output></label><input id="ig-threshold" type="range" value="50" min="2" max="98" step="1"><div class="ig-directions" role="group" aria-label="Kierunek zakładu"><button data-direction="under" aria-pressed="true">↓ Poniżej</button><button data-direction="over" aria-pressed="false">↑ Od progu</button></div>' : ''}
       ${id === 'mines' ? '<label for="ig-mines">Liczba min</label><select id="ig-mines">' + Array.from({ length: 24 }, (_, index) => `<option ${index === 2 ? 'selected' : ''}>${index + 1}</option>`).join('') + '</select>' : ''}
       ${id === 'trader' ? '<div class="ig-directions" role="group" aria-label="Kierunek kursu"><button data-direction="up" aria-pressed="true">↑ Wzrost</button><button data-direction="down" aria-pressed="false">↓ Spadek</button></div>' : ''}
-      ${id === 'plinko' ? '<label for="ig-risk">Poziom ryzyka</label><select id="ig-risk"><option value="low">Niskie · 0,7–8×</option><option value="high">Wysokie · 0,1–100×</option></select>' : ''}
+      ${id === 'plinko' ? '<label for="ig-rows">Liczba rzędów</label><select id="ig-rows">' + PLINKO_ROWS_OPTIONS.map((rows) => `<option value="${rows}" ${rows === 12 ? 'selected' : ''}>${rows} rzędów</option>`).join('') + '</select>' : ''}
       </div><div class="ig-offer"></div>${id === 'plinko' ? '<details class="ig-paytable"><summary>Tabela mnożników (od lewej)</summary><ol></ol></details>' : ''}<button class="button button-primary ig-play" data-ig="play">${text.action} ↗</button>
+      ${id === 'plinko' ? '<div class="ig-plinko-drops" role="group" aria-label="Puść kulkę — wybierz ryzyko">' + Object.entries(riskNames).map(([risk, name]) => `<button type="button" data-plinko-risk="${risk}" aria-label="Puść kulkę: ${name.toLowerCase()} ryzyko"><i aria-hidden="true">●</i><strong>${name}</strong><small></small></button>`).join('') + '</div>' : ''}
       <button class="button button-primary ig-cashout" data-ig="cashout" hidden>Odbierz żetony</button><button class="button button-primary" data-ig="retry" hidden>Ponów rozliczenie</button>
       <p class="ig-error" role="alert"></p><p class="ig-limit">Tylko wirtualne żetony.<br>Wypłata zawiera stawkę. Kwoty zaokrąglamy w dół.</p>
     </aside></div></section>`;
   const $ = (selector) => root.querySelector(selector);
   const options = () => ({ threshold: Number($('#ig-threshold')?.value || 50), mines: Number($('#ig-mines')?.value || 3),
-    direction: $('[data-direction][aria-pressed="true"]')?.dataset.direction, risk: $('#ig-risk')?.value || 'low' });
+    direction: $('[data-direction][aria-pressed="true"]')?.dataset.direction, risk: selectedRisk, rows: Number($('#ig-rows')?.value || 12) });
   function wait(ms) {
     return new Promise((resolve) => {
       resolveWait = resolve;
@@ -62,14 +67,22 @@ export function mountInstant(root, player, id, { onRound } = {}) {
     });
   }
   function plinkoBoard(state) {
-    const risk = options().risk;
-    const landed = state.result && state.result.risk === risk && !busy;
-    const pegs = Array.from({ length: PLINKO_ROWS }, (_, row) => Array.from({ length: row + 3 }, (_, column) => {
-      const { x, y } = plinkoPeg(row, column);
+    const { risk, rows } = options();
+    const { slotWidth, step } = plinkoGeometry(rows);
+    const landed = state.result && state.result.risk === risk && state.result.rows === rows && !busy;
+    const pegs = Array.from({ length: rows }, (_, row) => Array.from({ length: row + 3 }, (_, column) => {
+      const { x, y } = plinkoPeg(row, column, rows);
       return `<g class="ig-peg" data-peg="${row}-${column}"><circle class="ig-peg-ring" cx="${x}" cy="${y}" r="8"/><circle class="ig-peg-core" cx="${x}" cy="${y}" r="3.6"/></g>`;
     }).join('')).join('');
-    const slots = PLINKO_PAYTABLES[risk].map((value, slot) => `<g data-slot="${slot}" class="ig-slot ig-slot-tone-${Math.abs(slot - 6)} ${landed && state.result.slot === slot ? 'ig-landed' : ''}"><rect class="ig-slot-shadow" x="${plinkoSlotX(slot) - 19}" y="403" width="38" height="32" rx="6"/><rect class="ig-slot-face" x="${plinkoSlotX(slot) - 19}" y="398" width="38" height="32" rx="6"/><text x="${plinkoSlotX(slot)}" y="418">${number(value, value % 1 ? 1 : 0)}×</text></g>`).join('');
-    return `<svg viewBox="0 0 ${PLINKO_BOARD.width} ${PLINKO_BOARD.height}" class="ig-plinko-board" role="img" aria-label="Plansza Plinko, 12 rzędów. Mnożniki od lewej: ${PLINKO_PAYTABLES[risk].join(', ')}"><defs><radialGradient id="ig-plinko-ball"><stop offset="0" stop-color="#fff5d9"/><stop offset=".45" stop-color="#ffc4a0"/><stop offset="1" stop-color="#ff6177"/></radialGradient></defs><path class="ig-plinko-guides" d="M273 47 17 379Q12 389 25 389H615Q628 389 623 379L367 47"/><g class="ig-plinko-launcher"><path d="M305 10h30l-5 15h-20z"/><circle cx="320" cy="15" r="14"/></g><text class="ig-plinko-caption" x="32" y="27">12 RZĘDÓW</text><text class="ig-plinko-caption" x="608" y="27" text-anchor="end">${risk === 'high' ? 'WYSOKIE' : 'NISKIE'} RYZYKO</text><g class="ig-pegs">${pegs}</g>${slots}<g class="ig-ball-trail" aria-hidden="true">${Array.from({ length: 6 }, (_, i) => `<circle r="${5.2 - i * .55}" opacity="0"/>`).join('')}</g><g class="ig-ball" transform="translate(${landed ? plinkoSlotX(state.result.slot) : 320} ${landed ? PLINKO_BOARD.landingY : 15})"><circle class="ig-ball-glow" r="12"/><circle class="ig-ball-core" r="6.4"/><circle class="ig-ball-shine" cx="-1.7" cy="-2.2" r="1.7"/></g></svg>`;
+    const slots = Object.keys(riskNames).map((level, index) => plinkoPaytable(level, rows).map((value, slot) => {
+      const x = plinkoSlotX(slot, rows);
+      const y = 398 + index * 28;
+      return `<g data-slot="${slot}" data-risk="${level}" class="ig-slot ig-risk-${level} ${landed && level === risk && state.result.slot === slot ? 'ig-landed' : ''}"><rect class="ig-slot-shadow" x="${x - (slotWidth - 4) / 2}" y="${y + 4}" width="${slotWidth - 4}" height="24" rx="4"/><rect class="ig-slot-face" x="${x - (slotWidth - 4) / 2}" y="${y}" width="${slotWidth - 4}" height="24" rx="4"/><text x="${x}" y="${y + 16}" style="font-size:${rows === 16 ? 9.5 : 11.5}px">${number(value, value % 1 ? 1 : 0)}×</text></g>`;
+    }).join('')).join('');
+    const railTop = 320 - 2 * step - 14;
+    const tables = Object.entries(riskNames).map(([level, name]) => `${name} ryzyko: ${plinkoPaytable(level, rows).join(', ')}`).join('. ');
+    const finalAngle = landed ? state.result.flight.frames.at(-1).angle * 180 / Math.PI : 0;
+    return `<svg viewBox="0 0 ${PLINKO_BOARD.width} ${PLINKO_BOARD.height}" data-risk="${risk}" class="ig-plinko-board ig-ball-risk-${risk}" role="img" aria-label="Plansza Plinko, ${rows} rzędów. ${tables}"><defs><radialGradient id="ig-plinko-ball"><stop offset="0" stop-color="#fff5d9"/><stop offset=".45" stop-color="${risk === 'low' ? '#aaf5c1' : risk === 'medium' ? '#ffe19b' : '#ffc4a0'}"/><stop offset="1" stop-color="${risk === 'low' ? '#37ce8e' : risk === 'medium' ? '#f5b944' : '#ff6177'}"/></radialGradient></defs><path class="ig-plinko-guides" d="M${railTop} 42V66L33 352 47 374V389H593V374L607 352 ${640 - railTop} 66V42"/><g class="ig-plinko-launcher"><path d="M305 10h30l-5 15h-20z"/><circle cx="320" cy="15" r="14"/></g><text class="ig-plinko-caption" x="32" y="27">${rows} RZĘDÓW</text><text class="ig-plinko-caption" x="608" y="27" text-anchor="end">${riskNames[risk].toUpperCase()} RYZYKO</text><g class="ig-pegs">${pegs}</g>${slots}<g class="ig-ball-trail" aria-hidden="true">${Array.from({ length: 6 }, (_, i) => `<circle r="${5.2 - i * .55}" opacity="0"/>`).join('')}</g><g class="ig-ball" transform="translate(${landed ? state.result.landingX : 320} ${landed ? PLINKO_BOARD.landingY : 15}) rotate(${finalAngle})"><circle class="ig-ball-glow" r="12"/><circle class="ig-ball-core" r="6.4"/><circle class="ig-ball-shine" cx="-1.7" cy="-2.2" r="1.7"/></g></svg>`;
   }
   function stage(state) {
     const playing = state.phase === 'playing';
@@ -112,14 +125,13 @@ export function mountInstant(root, player, id, { onRound } = {}) {
     const offer = id === 'dice' ? diceOffer(options().threshold, options().direction) : id === 'mines' ? minesOffer(playing ? state.mines : options().mines, playing ? state.wins : 0, state.bet) : id === 'goal' ? goalOffer(state.wins || 0, state.bet) : null;
     const bet = Number($('#ig-bet').value);
     const shownMultiplier = playing || state.phase === 'finished' || settling ? state.multiplier : offer?.multiplier || (id === 'trader' ? 1.98 : 1);
-    $('[data-stat="multiplier"]').textContent = id === 'plinko' && state.phase === 'ready' ? '0,7–8×' : times(shownMultiplier);
+    $('[data-stat="multiplier"]').textContent = times(shownMultiplier);
     $('[data-stat="multiplier"]').parentElement.firstChild.textContent = state.phase === 'finished' ? 'Ostatni mnożnik' : 'Mnożnik';
-    if (id === 'plinko' && state.phase === 'ready' && options().risk === 'high') $('[data-stat="multiplier"]').textContent = '0,1–100×';
     const payout = state.phase === 'finished' ? state.payout : playing ? state.availablePayout : settling ? 0 : id === 'dice' || id === 'trader' ? Number.isSafeInteger(bet) && bet >= 10 && bet <= 5000 ? payoutFor(bet, shownMultiplier) : 0 : 0;
     $('[data-stat="payout"]').textContent = format.format(payout);
     $('[data-payout-label]').firstChild.textContent = state.phase === 'finished' ? 'Wypłacono' : playing ? 'Do odebrania' : 'Wypłata po trafieniu';
     $('.ig-setup').querySelectorAll('input, select, button').forEach((node) => { node.disabled = busy || playing || settling; });
-    $('[data-ig="play"]').hidden = playing || settling;
+    $('[data-ig="play"]').hidden = id === 'plinko' || playing || settling;
     $('[data-ig="play"]').disabled = busy;
     $('[data-ig="play"]').textContent = `${state.phase === 'finished' ? 'Zagraj ponownie' : text.action} ↗`;
     $('[data-ig="cashout"]').hidden = !playing || !['mines', 'goal'].includes(id);
@@ -127,9 +139,18 @@ export function mountInstant(root, player, id, { onRound } = {}) {
     $('[data-ig="cashout"]').textContent = state.wins ? `Odbierz ${format.format(state.availablePayout)} żetonów` : 'Odbierz po trafieniu';
     $('[data-ig="retry"]').hidden = !settling;
     $('[data-ig="retry"]').disabled = busy;
-    const offerText = id === 'dice' ? `Szansa trafienia: ${percent(offer.probability)} · mnożnik nowego rzutu ${times(offer.multiplier)} · wypłata ${Number.isSafeInteger(bet) && bet >= 10 && bet <= 5000 ? format.format(payoutFor(bet, offer.multiplier)) : '—'}` : id === 'trader' ? '50% na każdy kierunek · trafienie 1,98×' : id === 'mines' ? playing ? `Diamenty: ${state.wins}/${25 - state.mines} · szansa następnego: ${percent(offer.nextProbability)} · kolejny mnożnik ${times(minesOffer(state.mines, state.wins + 1, state.bet)?.multiplier || state.multiplier)}` : `${25 - options().mines} diamentów · ${options().mines} min` : id === 'goal' ? playing ? `${state.wins}/${GOAL_SHOTS} goli · szansa strzału 80% · po kolejnym golu ${times(goalOffer(state.wins, state.bet).nextMultiplier)}` : 'Nowa seria: do 10 goli · szansa strzału 80% · po pierwszym golu 1,2375×' : '12 rzędów · 50% w lewo / 50% w prawo';
+    const offerText = id === 'dice' ? `Szansa trafienia: ${percent(offer.probability)} · mnożnik nowego rzutu ${times(offer.multiplier)} · wypłata ${Number.isSafeInteger(bet) && bet >= 10 && bet <= 5000 ? format.format(payoutFor(bet, offer.multiplier)) : '—'}` : id === 'trader' ? '50% na każdy kierunek · trafienie 1,98×' : id === 'mines' ? playing ? `Diamenty: ${state.wins}/${25 - state.mines} · szansa następnego: ${percent(offer.nextProbability)} · kolejny mnożnik ${times(minesOffer(state.mines, state.wins + 1, state.bet)?.multiplier || state.multiplier)}` : `${25 - options().mines} diamentów · ${options().mines} min` : id === 'goal' ? playing ? `${state.wins}/${GOAL_SHOTS} goli · szansa strzału 80% · po kolejnym golu ${times(goalOffer(state.wins, state.bet).nextMultiplier)}` : 'Nowa seria: do 10 goli · szansa strzału 80% · po pierwszym golu 1,2375×' : 'Wybierz kolor, aby puścić kulkę';
     $('.ig-offer').textContent = offerText;
-    if (id === 'plinko') $('.ig-paytable ol').innerHTML = PLINKO_PAYTABLES[options().risk].map((value) => `<li>${number(value, value % 1 ? 1 : 0)}×</li>`).join('');
+    if (id === 'plinko') {
+      const table = plinkoPaytable(options().risk, options().rows);
+      $('.ig-paytable ol').innerHTML = table.map((value) => `<li>${number(value, value % 1 ? 1 : 0)}×</li>`).join('');
+      if (state.phase === 'ready') $('[data-stat="multiplier"]').textContent = `${number(Math.min(...table), 1)}–${number(Math.max(...table), 0)}×`;
+      $('.ig-offer').textContent = `${options().rows} rzędów · wybierz kolor, aby puścić kulkę`;
+      root.querySelectorAll('[data-plinko-risk]').forEach((button) => {
+        button.disabled = busy || settling;
+        button.querySelector('small').textContent = `do ${number(Math.max(...plinkoPaytable(button.dataset.plinkoRisk, options().rows)), 0)}×`;
+      });
+    }
     if ($('#ig-threshold-label')) $('#ig-threshold-label').textContent = options().threshold;
     const net = state.payout - state.bet;
     const message = state.phase === 'finished' ? state.outcome === 'cancelled' ? 'Runda anulowana. Stawka zwrócona.' : `${state.outcome === 'lose' ? id === 'goal' ? 'Obrona bramkarza.' : id === 'mines' ? 'Mina!' : 'Runda zakończona.' : state.outcome === 'cashout' ? 'Żetony odebrane!' : 'Runda zakończona.'} Wypłata: ${format.format(state.payout)}. Bilans: ${net >= 0 ? '+' : ''}${format.format(net)}.${state.capped ? ' Wypłatę ograniczył limit portfela.' : ''}` : settling ? 'Wypłata czeka na rozliczenie. Kliknij „Ponów rozliczenie”.' : playing ? id === 'mines' ? 'Wybierz zakryte pole lub odbierz po diamentach.' : state.wins ? 'Gol! Strzelasz dalej czy odbierasz?' : 'Wybierz jedno z pięciu miejsc w bramce.' : text.intro;
@@ -140,26 +161,28 @@ export function mountInstant(root, player, id, { onRound } = {}) {
   }
   function help() {
     closeHelp?.();
-    closeHelp = showGameHelp(`${text.title} — zasady`, [text.rules,
+    const rulePages = id === 'plinko' ? text.rules.match(/<p>.*?<\/p>/g) : [text.rules];
+    closeHelp = showGameHelp(`${text.title} — zasady`, [...rulePages,
       '<p>Stawka: 10–5 000 całkowitych wirtualnych żetonów. Wypłaty zawierają stawkę i są zaokrąglane w dół. Limit wypłaty: 1 000 000, limit mnożnika serii: 1 000×. Wypłatę może ograniczyć wolne miejsce w portfelu (limit salda 1 miliard).</p><p>Przy zwykłym wyjściu odbieramy wygraną z aktywnej serii Mines/Goal, a przed pierwszym trafieniem zwracamy stawkę. Gry jednorundowe rozliczamy przed animacją. Reset kończy grę i ustawia saldo 10 000. Awaryjne zamknięcie może uniemożliwić rozliczenie serii.</p>']);
   }
   async function act(action, value) {
     if (busy || disposed) return;
     const before = game.getState();
     busy = true;
+    releaseBalance = player.beginAnimation?.();
     try {
       error = (action === 'play' ? game.play(Number($('#ig-bet').value), options()) : action === 'cell' ? game.reveal(value) : action === 'zone' ? game.shoot(value) : action === 'cashout' ? game.cashout() : game.retry()) || '';
       const after = game.getState();
       if (action === 'play' && (!error || after.phase === 'settling' && before.phase !== 'settling')) roundReporter.begin();
       const animate = !error && (action === 'cell' || action === 'zone' || action === 'play' && ['dice', 'trader', 'plinko'].includes(id));
       if (animate) {
-        preview = before;
+        preview = id === 'goal' ? { ...before, result: after.result } : before;
         render();
         if (id === 'plinko' && window.matchMedia('(max-width: 650px)').matches) {
           $('.ig-arena').scrollIntoView({ block: 'start', behavior: reducedMotion.matches ? 'instant' : 'smooth' });
         }
         if (id === 'plinko' && !reducedMotion.matches) {
-          ballAnimation = animatePlinko($('.ig-plinko-board'), after.result.path);
+          ballAnimation = animatePlinko($('.ig-plinko-board'), after.result.flight);
           if (!await ballAnimation.finished) return;
         } else if (!await wait(id === 'goal' ? 650 : 450)) return;
         ballAnimation?.cancel(); ballAnimation = undefined;
@@ -169,6 +192,7 @@ export function mountInstant(root, player, id, { onRound } = {}) {
       error = 'Nie udało się wykonać ruchu. Sprawdź stan rundy i spróbuj ponownie.';
     } finally {
       busy = false;
+      releaseBalance?.();
       preview = undefined;
       render();
     }
@@ -178,6 +202,7 @@ export function mountInstant(root, player, id, { onRound } = {}) {
     if (!button || !root.contains(button) || disposed) return;
     if (button.dataset.ig === 'help') { help(); return; }
     if (busy || button.disabled) return;
+    if (button.dataset.plinkoRisk) { selectedRisk = button.dataset.plinkoRisk; act('play'); return; }
     if (button.dataset.chip) { $('#ig-bet').value = button.dataset.chip; error = ''; render(); return; }
     if (button.dataset.direction) {
       root.querySelectorAll('[data-direction]').forEach((choice) => choice.setAttribute('aria-pressed', String(choice === button)));
@@ -197,6 +222,7 @@ export function mountInstant(root, player, id, { onRound } = {}) {
     ballAnimation?.cancel(); closeHelp?.();
     events.abort(); unsubscribe();
     game.close();
+    releaseBalance?.();
     roundReporter.report(game.getState());
   };
 }

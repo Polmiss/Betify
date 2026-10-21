@@ -14,6 +14,7 @@ export function mountHighLow(root, player, { onRound } = {}) {
   const game = createHighLow(player);
   const roundReporter = createRoundReporter(onRound);
   let busy = false;
+  let releaseBalance;
   let disposed = false;
   let preview;
   let error = '';
@@ -107,8 +108,9 @@ export function mountHighLow(root, player, { onRound } = {}) {
     if (!['high', 'low', 'skip'].includes(action)) return;
     const before = game.getState();
     busy = true;
+    releaseBalance = player.beginAnimation?.();
     error = (action === 'skip' ? game.skip() : game.predict(action)) || '';
-    if (error) { busy = false; render(); return; }
+    if (error) { busy = false; releaseBalance?.(); render(); return; }
     preview = before;
     render();
     $('.hl-card').classList.add('hl-turning');
@@ -118,6 +120,7 @@ export function mountHighLow(root, player, { onRound } = {}) {
     $('.hl-card').classList.remove('hl-turning');
     if (!(await wait(280))) return;
     busy = false;
+    releaseBalance?.();
     render();
   }
   root.addEventListener('click', onClick, { signal: events.signal });
@@ -132,6 +135,7 @@ export function mountHighLow(root, player, { onRound } = {}) {
     closeHelp?.();
     events.abort(); unsubscribe();
     game.close();
+    releaseBalance?.();
     roundReporter.report(game.getState());
   };
 }

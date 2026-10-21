@@ -37,7 +37,7 @@ Bezpośrednie adresy: `game.html#dice`, `#mines`, `#trader`, `#goal`, `#plinko`.
 - **Dice:** próg 2–98 i zakład „Poniżej” lub „Od progu”. Losowanie jednej z 10 000 wartości od 0,00 do 99,99. Równość wygrywa tylko w drugim kierunku. Mnożnik to `0.99 / szansa`; przed rzutem widać szansę i potencjalną wypłatę.
 - **Trader:** fikcyjny kurs i dwa niezależne kierunki o szansie 50%. Trafienie wypłaca `1.98×`; wielkość ruchu 1–5% nie wpływa na wypłatę. Wykres nie korzysta z rzeczywistych notowań i nie przewiduje kolejnych wyników.
 - **Goal:** własny demonstracyjny wariant z pięcioma miejscami strzału. Bramkarz losuje jedno z nich z szansą 20%; zgodność oznacza obronę, a pozostałe miejsca gola. Po trafieniu można odebrać żetony lub strzelać dalej. Mnożnik po `n` golach to `0.99 / 0.8^n`. Obrona traci serię, a 10 goli kończy ją automatycznie.
-- **Plinko:** 12 niezależnych kroków w lewo lub w prawo (po 50%), 13 pól końcowych. Poziomy ryzyka: niski (0,7–8×) i wysoki (0,1–100×). Tabela mnożników jest widoczna na planszy i dostępna w rozwijanym zestawieniu. Środkowe pola są bardziej prawdopodobne niż skrajne. Animacja odpowiada wylosowanej ścieżce. Teoretyczny zwrot przed zaokrągleniem: około 98,13% / 98,05% dla niskiego / wysokiego ryzyka.
+- **Plinko:** trzy kolorowe przyciski zrzutu (niski, średni i wysoki poziom ryzyka), 8/12/16 rzędów oraz trzy widoczne tabele mnożników. Stały krok fizyki 240 Hz: grawitacja, okrągłe kołki, utrata energii, tarcie, obrót kulki, prowadnice i przegrody. Losowy jest tylko start; pole końcowe wynika z symulacji, bez kierowania do wybranego mnożnika. Tabele są wariantem demonstracyjnym Betify.
 
 Stawki: 10–5 000 całkowitych żetonów. Wypłata zawiera stawkę i jest zaokrąglana w dół. Maksymalna wypłata: 1 000 000; maksymalny mnożnik serii: 1 000×. Obowiązuje też limit salda portfela. Gry jednorundowe rozliczają wynik przed animacją. Wyjście z aktywnego Mines/Goal automatycznie odbiera żetony po trafieniach albo zwraca stawkę przed pierwszym ruchem. Reset przerywa animację i ustawia dokładnie 10 000. Awaryjne zamknięcie przeglądarki może uniemożliwić rozliczenie serii. Nieudane uznanie portfela można ponowić bez ponownego pobierania stawki lub losowania wyniku.
 
@@ -129,3 +129,5 @@ Po zapisaniu kodu na GitHubie:
 
 Workflow `ci.yml` sprawdza testy i build przy pushu/PR. `deploy.yml` publikuje po pushu na `main` i pozwala również uruchomić wdrożenie ręcznie.
 
+
+Saldo na ekranie jest zamrożone podczas animacji i aktualizowane po odsłonięciu wyniku. Księgowanie i walidacja korzystają z rzeczywistego portfela; zamknięcie karty nie anuluje rozliczonej wypłaty.

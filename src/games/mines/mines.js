@@ -16,6 +16,7 @@ export function mountMines(root, player, { onRound } = {}) {
   const motion = window.matchMedia('(prefers-reduced-motion: reduce)');
   let disposed = false;
   let busy = false;
+  let releaseBalance;
   let preview;
   let error = '';
   let timer;
@@ -76,7 +77,7 @@ export function mountMines(root, player, { onRound } = {}) {
   }
 
   function wait() {
-    return new Promise((resolve) => { resolveWait = resolve; timer = setTimeout(() => { resolveWait = undefined; resolve(!disposed); }, motion.matches ? 0 : 280); });
+    return new Promise((resolve) => { resolveWait = resolve; timer = setTimeout(() => { resolveWait = undefined; resolve(!disposed); }, motion.matches ? 0 : 320); });
   }
   function help() {
     closeHelp?.();
@@ -99,8 +100,9 @@ export function mountMines(root, player, { onRound } = {}) {
     if (button.dataset.cell === undefined && button.dataset.mn !== 'random') return;
     const before = game.getState();
     busy = true;
+    releaseBalance = player.beginAnimation?.();
     error = (button.dataset.mn === 'random' ? game.randomPick() : game.reveal(Number(button.dataset.cell))) || '';
-    if (error) { busy = false; render(); return; }
+    if (error) { busy = false; releaseBalance?.(); render(); return; }
     const after = game.getState();
     const chosen = after.hit ?? after.opened.at(-1);
     preview = { ...after, phase: 'playing', outcome: null, cells: before.cells.map((cell, i) => i === chosen ? after.cells[i] : cell) };
@@ -108,6 +110,7 @@ export function mountMines(root, player, { onRound } = {}) {
     if (!(await wait())) return;
     preview = undefined;
     busy = false;
+    releaseBalance?.();
     render();
   }
   root.addEventListener('click', onClick, { signal: events.signal });
@@ -117,6 +120,7 @@ export function mountMines(root, player, { onRound } = {}) {
   return () => {
     disposed = true; clearTimeout(timer); resolveWait?.(false);
     closeHelp?.(); events.abort(); unsubscribe(); game.close();
+    releaseBalance?.();
     roundReporter.report(game.getState());
   };
 }

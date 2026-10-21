@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { createInstantGame, diceOffer, minesOffer, goalOffer, payoutFor, drawInteger, PLINKO_PAYTABLES, PLINKO_ROWS, MAX_PAYOUT } from '../src/games/instant/engine.js';
+import { createInstantGame, diceOffer, minesOffer, goalOffer, payoutFor, drawInteger, PLINKO_PAYTABLES, PLINKO_ROWS_OPTIONS, plinkoPaytable, MAX_PAYOUT } from '../src/games/instant/engine.js';
 import { createPlayerStore, MAX_BALANCE, STORAGE_KEY } from '../src/store.js';
 import { games } from '../src/catalog.js';
 
@@ -198,37 +198,43 @@ test('Trader direction, movement size and 1.98 payout match the shown chart', ()
   assert.equal(player.getState().balance, 9998);
 });
 
-test('Plinko path maps every possible slot to the selected payout, including partial returns', () => {
-  for (const risk of ['low', 'high']) {
-    assert.equal(PLINKO_PAYTABLES[risk].length, PLINKO_ROWS + 1);
-    assert.deepEqual(PLINKO_PAYTABLES[risk], [...PLINKO_PAYTABLES[risk]].reverse());
-    for (let slot = 0; slot <= PLINKO_ROWS; slot++) {
-      const path = Array.from({ length: PLINKO_ROWS }, (_, index) => index < slot ? 1 : 0);
-      const player = wallet();
-      const game = createInstantGame('plinko', player, { randomInt: sequence(...path) });
-      game.play(101, { risk });
-      assert.equal(game.getState().result.slot, slot);
-      assert.deepEqual(game.getState().result.path, path);
-      assert.equal(game.getState().payout, Math.floor(101 * PLINKO_PAYTABLES[risk][slot] + 1e-8));
-      assert.equal(player.getState().balance, 9899 + game.getState().payout);
+test('Plinko physics determines the bucket and the chosen color determines its payout', () => {
+  for (const rows of PLINKO_ROWS_OPTIONS) {
+    for (const seed of [0, 17, 2026]) {
+      let positions;
+      for (const risk of ['low', 'medium', 'high']) {
+        const player = wallet();
+        const game = createInstantGame('plinko', player, { randomInt: () => seed });
+        assert.equal(game.play(101, { risk, rows }), null);
+        const state = game.getState();
+        assert.equal(state.result.slot, state.result.flight.slot);
+        assert.equal(state.multiplier, plinkoPaytable(risk, rows)[state.result.slot]);
+        assert.equal(state.payout, payoutFor(101, state.multiplier));
+        assert.equal(player.getState().balance, 9899 + state.payout);
+        if (positions) assert.deepEqual(state.result.flight.frames, positions, 'risk must not steer the ball');
+        positions = state.result.flight.frames;
+        state.result.flight.frames[0].x = -100;
+        assert.notEqual(game.getState().result.flight.frames[0].x, -100);
+        positions = game.getState().result.flight.frames;
+      }
     }
   }
 });
 
-test('Plinko binomial expectation stays below 1 and every enumerated path is reachable', () => {
-  for (const table of Object.values(PLINKO_PAYTABLES)) {
-    let total = 0;
-    const counts = Array(13).fill(0);
-    for (let path = 0; path < 4096; path++) {
-      const slot = path.toString(2).replaceAll('0', '').length;
-      counts[slot]++;
-      total += table[slot];
+test('Plinko tables cover every bucket for all three colors and all board sizes', () => {
+  for (const rows of PLINKO_ROWS_OPTIONS) {
+    for (const risk of Object.keys(PLINKO_PAYTABLES)) {
+      const table = plinkoPaytable(risk, rows);
+      assert.equal(table.length, rows + 1);
+      assert.deepEqual(table, [...table].reverse());
+      assert.ok(table.every((value) => Number.isFinite(value) && value > 0));
     }
-    assert.equal(counts[6], 924);
-    assert.ok(total / 4096 > 0.8 && total / 4096 < 1);
   }
+  const player = wallet();
+  const game = createInstantGame('plinko', player);
+  assert.ok(game.play(100, { rows: 10 }));
+  assert.equal(player.getState().balance, 10000);
 });
-
 test('wallet cap, failed credit retry and duplicate settlement cannot create extra tokens', () => {
   const player = wallet(MAX_BALANCE);
   const game = createInstantGame('dice', player, { randomInt: () => 0 });

@@ -14,8 +14,9 @@ import { showGameHelp } from './game-help.js';
 import './game-viewport.css';
 import { mountCookieNotice } from './cookie-notice.js';
 import { mountRoundHistory } from './round-history.js';
+import { createAnimatedWallet } from './animated-wallet.js';
 
-const player = browserPlayer();
+const player = createAnimatedWallet(browserPlayer());
 const format = new Intl.NumberFormat('pl-PL');
 let cleanup;
 let closeHelp;
@@ -42,12 +43,12 @@ surface.addEventListener('click', (event) => {
   closeHelp = showGameHelp('Zasady stołu', pages, () => button.setAttribute('aria-expanded', 'false'));
 }, true);
 function updateWallet() {
-  document.querySelectorAll('.balance-value').forEach((node) => { node.textContent = format.format(player.getState().balance); });
+  document.querySelectorAll('.balance-value').forEach((node) => { node.textContent = format.format(player.getDisplayState().balance); });
   const notice = document.querySelector('.game-page-notice');
   notice.hidden = player.getState().persistent;
   notice.textContent = 'Zapisywanie jest niedostępne. Saldo zostaje tylko do odświeżenia tej karty.';
 }
-player.subscribe(updateWallet);
+player.subscribeDisplay(updateWallet);
 document.querySelector('.game-reset').addEventListener('click', () => {
   // Finish pending animations and settlement before setting the initial balance.
   closeHelp?.();

@@ -29,5 +29,11 @@
 @keyframes ig-peg-flash{0%,20%{fill:#fff4d8;filter:drop-shadow(0 0 5px #ffd094)}100%{fill:#c6dce4;filter:none}}
 @keyframes ig-peg-ring{0%{opacity:.7;transform:scale(.6)}100%{opacity:0;transform:scale(1.8)}}
 @keyframes ig-slot-impact{0%,100%{transform:translateY(0)}28%{transform:translateY(5px)}60%{transform:translateY(-2px)}}
-@media(max-width:650px){.ig-plinko .ig-stage{min-height:0;aspect-ratio:640/452;padding:6px 0}.ig-plinko .ig-arena{padding:12px 8px}.ig-plinko .ig-plinko-board{height:auto;flex:1}.ig-plinko .ig-message{min-height:44px;padding-top:10px;font-size:11px}.ig-plinko .ig-history{padding-top:8px}}
+.ig-plinko .ig-slot.ig-risk-low{--slot-color:#78dda6;--slot-shadow:#327b55}.ig-plinko .ig-slot.ig-risk-medium{--slot-color:#f3cb62;--slot-shadow:#94702b}.ig-plinko .ig-slot.ig-risk-high{--slot-color:#f27c8e;--slot-shadow:#973c51}
+.ig-plinko .ig-plinko-drops{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.ig-plinko-drops button{display:flex;flex-direction:column;align-items:center;gap:5px;min-height:80px;padding:10px 4px;border-radius:9px;background:#78dda6;border:1px solid #bcf8d0;color:#153c2b;box-shadow:0 4px 0 #327b55}
+.ig-plinko-drops [data-plinko-risk=medium]{background:#f3cb62;border-color:#ffe9ab;color:#4b3916;box-shadow:0 4px 0 #94702b}.ig-plinko-drops [data-plinko-risk=high]{background:#f27c8e;border-color:#ffb0bb;color:#571f30;box-shadow:0 4px 0 #973c51}
+.ig-plinko-drops button:not(:disabled):hover{filter:brightness(1.1);transform:translateY(-1px)}.ig-plinko-drops i{font-style:normal;font-size:14px}.ig-plinko-drops strong{font-size:11px}.ig-plinko-drops small{font-size:9px}
+.ig-ball-risk-low .ig-ball-trail{fill:#93efb9}.ig-ball-risk-medium .ig-ball-trail{fill:#ffe19b}
+@media(max-width:650px){.ig-plinko .ig-stage{min-height:0;aspect-ratio:640/500;padding:6px 0}.ig-plinko .ig-arena{padding:12px 8px}.ig-plinko .ig-plinko-board{height:auto;flex:1}.ig-plinko .ig-message{min-height:44px;padding-top:10px;font-size:11px}.ig-plinko .ig-history{padding-top:8px}.ig-plinko-drops button{min-height:72px}}
 @media(prefers-reduced-motion:reduce){.ig-plinko .ig-ball-glow,.ig-plinko .ig-ball-trail{display:none}}
