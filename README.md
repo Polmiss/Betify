@@ -131,3 +131,5 @@ Workflow `ci.yml` sprawdza testy i build przy pushu/PR. `deploy.yml` publikuje p
 
 
 Saldo na ekranie jest zamrożone podczas animacji i aktualizowane po odsłonięciu wyniku. Księgowanie i walidacja korzystają z rzeczywistego portfela; zamknięcie karty nie anuluje rozliczonej wypłaty.
+
+Plinko obsługuje dowolną liczbę równoczesnych kulek bez sztucznego limitu. Każda kulka rezerwuje własną stawkę, ma osobny tor fizyczny i rozlicza wypłatę oraz wynik po swojej animacji. Nierozliczonych wypłat nie można obstawiać; panel pokazuje dostępne żetony i sumę zarezerwowanych stawek. Stawka i kolor mogą się zmieniać między zrzutami, a rzędy dopiero po opróżnieniu planszy. Jedna pętla animacji obsługuje wszystkie kulki; reset i wyjście rozliczają pozostałe loty dokładnie raz.

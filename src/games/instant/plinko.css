@@ -35,5 +35,6 @@
 .ig-plinko-drops [data-plinko-risk=medium]{background:#f3cb62;border-color:#ffe9ab;color:#4b3916;box-shadow:0 4px 0 #94702b}.ig-plinko-drops [data-plinko-risk=high]{background:#f27c8e;border-color:#ffb0bb;color:#571f30;box-shadow:0 4px 0 #973c51}
 .ig-plinko-drops button:not(:disabled):hover{filter:brightness(1.1);transform:translateY(-1px)}.ig-plinko-drops i{font-style:normal;font-size:14px}.ig-plinko-drops strong{font-size:11px}.ig-plinko-drops small{font-size:9px}
 .ig-ball-risk-low .ig-ball-trail{fill:#93efb9}.ig-ball-risk-medium .ig-ball-trail{fill:#ffe19b}
+.ig-ball-risk-high .ig-ball-trail{fill:#ffadbc}.ig-flight-count{display:flex;align-items:center;justify-content:space-between;gap:12px}.ig-flight-count strong{font-size:23px;color:#ffcfb9;font-variant-numeric:tabular-nums}.ig-plinko .ig-offer b{font-variant-numeric:tabular-nums}
 @media(max-width:650px){.ig-plinko .ig-stage{min-height:0;aspect-ratio:640/500;padding:6px 0}.ig-plinko .ig-arena{padding:12px 8px}.ig-plinko .ig-plinko-board{height:auto;flex:1}.ig-plinko .ig-message{min-height:44px;padding-top:10px;font-size:11px}.ig-plinko .ig-history{padding-top:8px}.ig-plinko-drops button{min-height:72px}}
 @media(prefers-reduced-motion:reduce){.ig-plinko .ig-ball-glow,.ig-plinko .ig-ball-trail{display:none}}

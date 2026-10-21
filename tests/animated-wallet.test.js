@@ -5,6 +5,34 @@ import { createAnimatedWallet } from '../src/animated-wallet.js';
 
 function wallet() { return createAnimatedWallet(createPlayerStore({ getItem: () => null, setItem() {} })); }
 
+test('each concurrent ball publishes its own result while other stakes stay hidden', () => {
+  const player = wallet();
+  const first = player.deferDebit(100); player.debit(100);
+  const second = player.deferDebit(200); player.debit(200);
+  assert.equal(player.getState().balance, 9700);
+  assert.equal(player.getDisplayState().balance, 10000);
+  const publishFirst = player.beginAnimation();
+  player.credit(198); first();
+  assert.equal(player.getDisplayState().balance, 10000);
+  publishFirst();
+  assert.equal(player.getDisplayState().balance, 10098);
+  first(); publishFirst();
+  assert.equal(player.getDisplayState().balance, 10098);
+  const publishSecond = player.beginAnimation(); second(); publishSecond();
+  assert.equal(player.getDisplayState().balance, 9898);
+  assert.equal(player.getState().balance, 9898);
+});
+
+test('cancelled reservation and overlapping cleanup cannot change another stake', () => {
+  const player = wallet();
+  const first = player.deferDebit(100); player.debit(100);
+  const cancelled = player.deferDebit(200); cancelled(); cancelled();
+  assert.equal(player.getDisplayState().balance, 10000);
+  first();
+  assert.equal(player.getDisplayState().balance, 9900);
+  assert.throws(() => player.deferDebit(-1));
+});
+
 test('debits and payouts remain hidden until the reveal ends, while accounting stays valid', () => {
   const player = wallet();
   const shown = [];
