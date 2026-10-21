@@ -1,8 +1,9 @@
 import './roulette.css';
-import { BETS, WHEEL, colorOf, stakeTotal, drawPocket, settleRound } from './engine.js';
+import { BETS, WHEEL, colorOf, stakeTotal, drawPocket, settleRound, calculateResult } from './engine.js';
 import { CHIPS, chipLabel, createBettingRack } from './betting.js';
 import { createSpinPlan, sampleSpin } from './motion.js';
 import { createRoundReporter } from '../../round-results.js';
+import { createRouletteClock, BETTING_MS, SPIN_MS } from './round-clock.js';
 
 const format = new Intl.NumberFormat('pl-PL');
 const chips = CHIPS;
@@ -35,15 +36,17 @@ export function mountRoulette(root, { player, onRound }) {
   let ballRadius = 188;
   let frame;
   let plan;
-  let spinTimer;
+  let clockTimer;
+  let spinError = '';
   let history = [];
   let result = null;
   let disposed = false;
   let betPage = 0;
+  const clock = createRouletteClock({ onSpin: spin, onBetting: finish });
 
   const button = (id, label, extra = '') => `<button type="button" class="rt-bet ${extra}" data-rt-bet="${id}" aria-label="Postaw na: ${BETS[id].label}"><span>${label}</span><span class="rt-chip-stack" aria-hidden="true" hidden></span></button>`;
   root.innerHTML = `<div class="rt-root">
-    <header class="rt-header"><div><span class="rt-eyebrow">BETIFY ORIGINALS · EUROPEJSKA</span><h2 id="dialog-title">Ruletka<span>.</span></h2><p>Jeden obrót. Twój moment.</p></div><span class="rt-demo">TYLKO WIRTUALNE ŻETONY</span></header>
+    <header class="rt-header"><div><span class="rt-eyebrow">BETIFY ORIGINALS · EUROPEJSKA</span><h2 id="dialog-title">Ruletka<span>.</span></h2><p>Automatyczny obrót co 15 sekund.</p></div><span class="rt-demo">TYLKO WIRTUALNE ŻETONY</span></header>
     <div class="rt-layout">
       <section class="rt-wheel-panel" aria-label="Koło ruletki"><div class="rt-wheel-top"><span><i></i> SINGLE ZERO</span><button class="rt-rules-toggle" aria-expanded="false">Zasady i wypłaty ⓘ</button></div>
         <div class="rt-wheel-stage"><div class="rt-wheel-wrap">${wheelMarkup()}<svg class="rt-ball-track" viewBox="0 0 400 400" aria-hidden="true"><defs><radialGradient id="rt-ball-light" cx="30%" cy="25%"><stop stop-color="#fff"/><stop offset=".6" stop-color="#fff7e1"/><stop offset="1" stop-color="#aa9983"/></radialGradient></defs><ellipse class="rt-ball-shadow" cx="202" cy="14" rx="6" ry="4" fill="#000" opacity=".4"/><circle class="rt-ball" cx="200" cy="12" r="5" fill="url(#rt-ball-light)"/></svg></div></div>
@@ -62,12 +65,12 @@ export function mountRoulette(root, { player, onRound }) {
         </div>
         <div class="rt-tools"><button data-rt-action="undo">↶ Cofnij</button><button data-rt-action="clear">Wyczyść stół</button><button data-rt-action="repeat">↻ Powtórz zakłady</button></div>
         <div class="rt-slip" aria-label="Podsumowanie zakładów"><div class="rt-slip-title"><h3>Twoje zakłady</h3><nav class="rt-bet-pages" aria-label="Strony zakładów"><button data-rt-action="bets-prev" aria-label="Poprzednie zakłady">‹</button><span data-rt-bet-count>Brak zakładów</span><button data-rt-action="bets-next" aria-label="Następne zakłady">›</button></nav></div><ul class="rt-bet-list" data-rt-bet-list></ul><div class="rt-slip-total"><span>Łączna stawka rundy</span><strong data-rt-total>0 <small>żetonów</small></strong></div></div>
-        <p class="rt-message" role="status" aria-live="polite">Postaw żetony, aby rozpocząć rundę.</p>
-        <button class="rt-spin" data-rt-action="spin" disabled><span>Zakręć kołem</span><span aria-hidden="true">↗</span></button>
+        <p class="rt-message" role="status" aria-live="polite">Postaw żetony. Obrót rozpocznie się automatycznie.</p>
+        <div class="rt-spin rt-round-clock" role="timer" aria-live="off" aria-label="Czas do zamknięcia zakładów"><span data-rt-clock-label>Zakłady otwarte</span><strong data-rt-seconds>10 s</strong><i class="rt-clock-progress" aria-hidden="true"></i></div>
         <p class="rt-footnote">Bez wpłat i wypłat. Żetony nie mają wartości pieniężnej.</p>
       </section>
     </div>
-    <section class="rt-rules" hidden aria-label="Zasady ruletki"><h3>Jak gramy?</h3><p>Wybierz nominał. Lewy przycisk myszy dodaje żeton, a prawy zdejmuje ostatni żeton z danego pola. Na telefonie możesz użyć minusa przy zakładzie. „Cofnij” usuwa ostatni dołożony żeton. „All in” pozwala postawić całe pozostałe saldo: wybierz przycisk, a potem pole. Wcześniejsze zakłady zostają na stole. Limit rundy wynosi 100 000 żetonów. Zakłady split, street i corner nie są dostępne w tej wersji.</p><div class="rt-payouts"><span>Jedna liczba <strong>36,63×</strong></span><span>Tuzin lub kolumna <strong>3,0525×</strong></span><span>Kolor, parzystość, 1–18 / 19–36 <strong>2,035×</strong></span></div><p>Wypłata obejmuje wygraną oraz zwrot zwycięskiej stawki (odpowiednio ×36,63, ×3,0525 lub ×2,035). Zero przegrywa wszystkie zakłady poza zakładem na samą liczbę 0. Każda liczba ma szansę 1/37; RTP wynosi 99%, a przewaga stołu 1%. Ułamkową sumę wypłat zaokrąglamy losowo do sąsiednich całych żetonów z zachowaniem wartości oczekiwanej.</p><p>Wynik jest rozliczany przy rozpoczęciu obrotu; widoczne saldo aktualizuje się po animacji. Animacja tylko pokazuje wynik — zamknięcie gry nie anuluje rundy ani nie zabiera wygranej.</p></section>
+    <section class="rt-rules" hidden aria-label="Zasady ruletki"><h3>Jak gramy?</h3><p>Koło rusza automatycznie co 15 sekund: 10 sekund na zakłady, potem 5 sekund obrotu. Odliczanie pokazuje czas do zamknięcia lub ponownego otwarcia stołu. Podczas obrotu nie można zmieniać zakładów. Po wyniku stół jest czyszczony; powtórzenie stawek wymaga kliknięcia „Powtórz zakłady”. Koło obraca się także bez stawki — wtedy saldo i statystyki gracza pozostają bez zmian.</p><p>Wybierz nominał. Lewy przycisk myszy dodaje żeton, a prawy zdejmuje ostatni żeton z danego pola. Na telefonie możesz użyć minusa przy zakładzie. „Cofnij” usuwa ostatni dołożony żeton. „All in” pozwala postawić całe pozostałe saldo: wybierz przycisk, a potem pole. Wcześniejsze zakłady zostają na stole. Limit rundy wynosi 100 000 żetonów. Zakłady split, street i corner nie są dostępne w tej wersji.</p><div class="rt-payouts"><span>Jedna liczba <strong>36,63×</strong></span><span>Tuzin lub kolumna <strong>3,0525×</strong></span><span>Kolor, parzystość, 1–18 / 19–36 <strong>2,035×</strong></span></div><p>Wypłata obejmuje wygraną oraz zwrot zwycięskiej stawki (odpowiednio ×36,63, ×3,0525 lub ×2,035). Zero przegrywa wszystkie zakłady poza zakładem na samą liczbę 0. Każda liczba ma szansę 1/37; RTP wynosi 99%, a przewaga stołu 1%. Ułamkową sumę wypłat zaokrąglamy losowo do sąsiednich całych żetonów z zachowaniem wartości oczekiwanej.</p><p>Wynik jest rozliczany przy rozpoczęciu obrotu; widoczne saldo aktualizuje się po animacji. Animacja tylko pokazuje wynik — zamknięcie gry nie anuluje rundy ani nie zabiera wygranej.</p></section>
   </div>`;
 
   const find = (selector) => root.querySelector(selector);
@@ -111,7 +114,6 @@ export function mountRoulette(root, { player, onRound }) {
       const denominations = rack.stack(id).reduce((counts, value) => { counts[value] = (counts[value] || 0) + 1; return counts; }, {});
       return `<li><div><strong>${BETS[id].label}</strong><small>${Object.entries(denominations).map(([value, count]) => `${count} × ${format.format(Number(value))}`).join(' · ')}</small></div><span>${format.format(amount)}</span><button data-rt-remove="${id}" aria-label="Zdejmij ostatni żeton: ${BETS[id].label}" ${spinning ? 'disabled' : ''}>−</button></li>`;
     }).join('') || '<li class="rt-slip-empty">Wybierz pola na planszy. Każdy zakład pojawi się tutaj osobno.</li>';
-    find('[data-rt-action="spin"]').disabled = spinning || total === 0 || total > player.getState().balance;
     find('[data-rt-action="undo"]').disabled = spinning || !rack.size;
     find('[data-rt-action="clear"]').disabled = spinning || !total;
     find('[data-rt-action="repeat"]').disabled = spinning || !previousStack.length;
@@ -124,58 +126,98 @@ export function mountRoulette(root, { player, onRound }) {
   function finish() {
     if (disposed || !spinning) return;
     cancelAnimationFrame(frame);
-    clearTimeout(spinTimer);
-    paint(sampleSpin(plan, 1));
+    if (plan) paint(sampleSpin(plan, 1));
     spinning = false;
     settled = true;
     releaseBalance?.();
+    releaseBalance = undefined;
     reportResult();
     root.classList.remove('rt-spinning');
-    const resultNumber = find('.rt-result-number');
-    resultNumber.textContent = result.pocket;
-    resultNumber.className = `rt-result-number rt-${colorOf(result.pocket)}`;
-    const colorName = result.pocket === 0 ? 'zielone' : colorOf(result.pocket) === 'red' ? 'czerwone' : 'czarne';
-    find('[data-rt-result-title]').textContent = `${result.pocket} · ${colorName}`;
-    find('[data-rt-result-text]').textContent = result.payout ? `Wypłata: ${format.format(result.payout)} żetonów` : 'Tym razem bez wygranej.';
-    message(`Bilans rundy: ${result.net > 0 ? '+' : ''}${format.format(result.net)} żetonów. ${result.payout ? 'Wypłata zawiera zwrot zwycięskiej stawki.' : 'Możesz przygotować kolejne zakłady.'}`);
-    history.unshift(result.pocket); history = history.slice(0, 10);
-    find('[data-rt-history]').innerHTML = history.map((n, i) => `<span class="rt-history-number rt-${colorOf(n)} ${i === 0 ? 'rt-latest' : ''}" aria-label="${i === 0 ? 'Ostatni wynik: ' : ''}${n}">${n}</span>`).join('');
+    if (result) {
+      const resultNumber = find('.rt-result-number');
+      resultNumber.textContent = result.pocket;
+      resultNumber.className = `rt-result-number rt-${colorOf(result.pocket)}`;
+      const colorName = result.pocket === 0 ? 'zielone' : colorOf(result.pocket) === 'red' ? 'czerwone' : 'czarne';
+      find('[data-rt-result-title]').textContent = `${result.pocket} · ${colorName}`;
+      find('[data-rt-result-text]').textContent = spinError ? 'Zakład nie został przyjęty.' : !result.stake ? 'Obrót bez zakładu.' : result.payout ? `Wypłata: ${format.format(result.payout)} żetonów` : 'Tym razem bez wygranej.';
+      history.unshift(result.pocket); history = history.slice(0, 10);
+      find('[data-rt-history]').innerHTML = history.map((n, i) => `<span class="rt-history-number rt-${colorOf(n)} ${i === 0 ? 'rt-latest' : ''}" aria-label="${i === 0 ? 'Ostatni wynik: ' : ''}${n}">${n}</span>`).join('');
+    } else {
+      find('.rt-result-number').textContent = '?';
+      find('[data-rt-result-title]').textContent = 'Runda odwołana';
+      find('[data-rt-result-text]').textContent = 'Nie pobrano stawki.';
+    }
+    message(spinError ? `${spinError} Możesz przygotować nowy zakład.` : result?.stake ? `Bilans rundy: ${result.net > 0 ? '+' : ''}${format.format(result.net)}. Zakłady ponownie otwarte.` : 'Zakłady otwarte. Wybierz żetony na następny obrót.', !!spinError);
     // Paid stakes are consumed. Repeating is an explicit action, never an automatic re-bet.
     rack.clear();
     updateBalance(); renderBets();
-    find('[data-rt-action="spin"]').innerHTML = '<span>Zakręć kołem</span><span aria-hidden="true">↗</span>';
   }
 
-  function spin() {
-    if (spinning) return;
+  function spin(timing) {
+    if (spinning || disposed) return;
     spinning = true;
-    releaseBalance = player.beginAnimation?.();
     settled = false;
-    try { result = settleRound(player, rack.totals(), drawPocket()); }
-    catch (error) { spinning = false; releaseBalance?.(); message(error.message, true); updateBalance(); renderBets(); return; }
-    roundReporter.begin();
-    previousStack = rack.snapshot();
+    spinError = ''; result = null; plan = undefined;
+    try {
+      const pocket = drawPocket();
+      // Prepare animation before accepting any stake; randomness failures cost nothing.
+      plan = { ...createSpinPlan(pocket, wheelAngle, ballAngle, undefined, ballRadius), duration: SPIN_MS };
+      const bets = rack.totals();
+      result = calculateResult({}, pocket);
+      if (rack.size) {
+        releaseBalance = player.beginAnimation?.();
+        result = settleRound(player, bets, pocket);
+        roundReporter.begin();
+        previousStack = rack.snapshot();
+      }
+    } catch (error) {
+      spinError = error.message;
+      releaseBalance?.(); releaseBalance = undefined;
+    }
     root.classList.add('rt-spinning');
     find('.rt-result-number').textContent = '…';
     find('.rt-result-number').className = 'rt-result-number';
     find('[data-rt-result-title]').textContent = 'Koło w ruchu';
-    find('[data-rt-result-text]').textContent = 'Zakłady zamknięte. Czekamy na kulkę.';
-    find('[data-rt-action="spin"]').innerHTML = '<span>Koło się kręci…</span><span aria-hidden="true">◌</span>';
-    find('[data-rt-balance]').textContent = 'Rozliczanie…';
-    message('Runda trwa. Nie można teraz zmieniać zakładów.');
+    find('[data-rt-result-text]').textContent = spinError ? 'Zakład nie został przyjęty.' : result?.stake ? 'Zakłady zamknięte. Czekamy na kulkę.' : 'Obrót bez zakładu. Saldo bez zmian.';
+    if (result?.stake) find('[data-rt-balance]').textContent = 'Rozliczanie…';
+    message(spinError || 'Runda trwa. Nie można teraz zmieniać zakładów.', !!spinError);
     renderBets();
-    plan = createSpinPlan(result.pocket, wheelAngle, ballAngle, undefined, ballRadius);
-    const wait = window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 150 : plan.duration;
-    root.dataset.spinDuration = Math.round(wait);
-    const start = performance.now();
+    root.dataset.spinDuration = SPIN_MS;
+    root.dataset.roundNumber = timing.round;
+    if (!plan || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
     const animate = (now) => {
       if (disposed || !spinning) return;
-      const progress = Math.min(1, (now - start) / wait);
+      const progress = Math.min(1, (now - timing.startedAt) / SPIN_MS);
       paint(sampleSpin(plan, progress));
-      if (progress < 1) frame = requestAnimationFrame(animate); else finish();
+      if (progress < 1) frame = requestAnimationFrame(animate); else syncClock();
     };
     frame = requestAnimationFrame(animate);
-    spinTimer = setTimeout(finish, wait + 100);
+  }
+
+  function renderClock(state) {
+    const active = state.phase === 'spinning';
+    const timer = find('.rt-round-clock');
+    timer.dataset.phase = state.phase;
+    timer.style.setProperty('--remaining', Math.max(0, Math.min(1, state.remainingMs / (active ? SPIN_MS : BETTING_MS))));
+    timer.setAttribute('aria-label', active ? 'Czas do otwarcia zakładów' : 'Czas do zamknięcia zakładów');
+    find('[data-rt-clock-label]').textContent = active ? 'Koło w ruchu · zakłady zamknięte' : 'Zakłady otwarte · obrót za';
+    const seconds = `${state.seconds} s`;
+    if (find('[data-rt-seconds]').textContent !== seconds) find('[data-rt-seconds]').textContent = seconds;
+    root.dataset.roundPhase = state.phase;
+  }
+
+  function syncClock() {
+    clearTimeout(clockTimer);
+    if (disposed) return;
+    const state = clock.advance();
+    renderClock(state);
+    clockTimer = setTimeout(syncClock, Math.max(1, Math.min(100, state.remainingMs)));
+  }
+
+  function canBet() {
+    const accepted = clock.canBet();
+    renderClock(clock.getState());
+    return !disposed && accepted;
   }
 
   function paint(sample) {
@@ -188,7 +230,7 @@ export function mountRoulette(root, { player, onRound }) {
   }
 
   function removeChip(id) {
-    if (spinning) return;
+    if (!canBet()) return;
     const chip = rack.remove(id);
     if (chip) { settled = false; renderBets(); message(`Zdjęto ${format.format(chip.amount)} żetonów: ${BETS[id].label}.`); }
   }
@@ -205,7 +247,7 @@ export function mountRoulette(root, { player, onRound }) {
     if (target.dataset.rtAction === 'bets-prev' || target.dataset.rtAction === 'bets-next') {
       betPage += target.dataset.rtAction === 'bets-prev' ? -1 : 1; renderBets(); return;
     }
-    if (spinning) return;
+    if (!canBet()) return;
     if (target.dataset.rtRemove) { removeChip(target.dataset.rtRemove); return; }
     if (target.dataset.rtChip) {
       selectedChip = Number(target.dataset.rtChip);
@@ -232,7 +274,6 @@ export function mountRoulette(root, { player, onRound }) {
         allInSelected = !allInSelected; renderChipSelection();
         message(allInSelected ? 'All in wybrane. Kliknij pole, aby postawić na nim pozostałe saldo.' : `Wybrano żeton ${format.format(selectedChip)}.`);
         break;
-      case 'spin': spin(); break;
       case 'clear': rack.clear(); settled = false; renderBets(); message('Stół wyczyszczony. Wybierz nowe pola.'); break;
       case 'undo': {
         rack.undo();
@@ -247,11 +288,14 @@ export function mountRoulette(root, { player, onRound }) {
     }
   }, { signal: events.signal });
   renderBets();
+  syncClock();
   window.addEventListener('resize', renderBets, { signal: events.signal });
+  document.addEventListener('visibilitychange', syncClock, { signal: events.signal });
 
   return () => {
     disposed = true;
-    clearTimeout(spinTimer);
+    clock.close();
+    clearTimeout(clockTimer);
     cancelAnimationFrame(frame);
     events.abort();
     unsubscribe();

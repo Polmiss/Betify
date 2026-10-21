@@ -83,6 +83,9 @@
 .rt-spin{display:flex;align-items:center;justify-content:space-between;width:100%;min-height:47px;padding:12px 19px;border-radius:7px;background:#b8f575;color:#243619;font-size:12px;font-weight:700;transition:background .15s}
 .rt-spin:hover:not(:disabled){background:#d2ff9f}
 .rt-spin:disabled{background:#35492c;color:#8fa879;cursor:default}
+.game-page .rt-spin.rt-round-clock{position:relative;overflow:hidden;cursor:default;user-select:none;gap:12px;background:#9aebcb;color:#163e34;border:1px solid #b7ffe1}
+.rt-round-clock strong{font-size:20px;line-height:1;font-variant-numeric:tabular-nums;white-space:nowrap}.rt-round-clock [data-rt-clock-label]{font-size:inherit;line-height:1.2}.rt-clock-progress{position:absolute;bottom:0;left:0;width:calc(var(--remaining,1)*100%);height:3px;background:#185c4380;pointer-events:none}
+.game-page .rt-spin.rt-round-clock[data-phase=spinning]{background:#403d30;border-color:#88764d;color:#ffe1a1}.rt-round-clock[data-phase=spinning] .rt-clock-progress{background:#f4ca6960}
 .rt-spin>span:last-child{font-size:21px;line-height:1}
 .rt-footnote{font-size:8px;color:#839775;text-align:center;margin-top:13px;line-height:1.7}
 .rt-rules{border-top:1px solid #34432e;margin-top:25px;padding-top:20px}

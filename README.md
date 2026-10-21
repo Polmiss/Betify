@@ -105,9 +105,13 @@ Przejście do innej gry lub opuszczenie strony wywołuje sprzątanie i rozliczen
 
 Ruletka ma europejskie koło z jednym zerem, zakłady na liczby, kolory, parzystość, zakresy, tuziny i kolumny. Nominały: 10, 50, 100, 500, 1 000, 5 000 i 10 000. Lewy klik dodaje żeton, prawy zdejmuje ostatni żeton z danego pola. Na telefonie służy do tego minus w podsumowaniu. Powtarzanie zakładów odtwarza dokładne nominały i kolejność stosów. Podsumowanie pokazuje każdą stawkę osobno, jej skład oraz łączną kwotę pomocniczą.
 
-Każdy obrót otrzymuje nowy plan ruchu: 10–14,5 sekundy, zmienny kierunek, liczbę obrotów, prędkość, punkt opadania i odbicia kulki. Kulka krąży niezależnie od koła, opada i zatrzymuje się w kieszeni zgodnej z wynikiem. `prefers-reduced-motion` skraca efekty. Losowanie wyniku pozostaje niezależne od animacji; saldo jest rozliczane przed jej startem.
+Ruletka działa automatycznie w cyklu 15 sekund: 10 sekund na obstawianie i 5 sekund obrotu. Odliczanie zastępuje ręczny przycisk uruchamiania. Do zamknięcia zakładów można dodawać, zdejmować, cofać i powtarzać żetony; w trakcie obrotu zakłady są zablokowane. Termin jest sprawdzany także przy kliknięciu, więc spóźniony timer interfejsu nie pozwala dołożyć żetonu po zamknięciu stołu.
 
-Kod stron gier: `src/game-page.js`, układy: `src/game-page.css`, wspólna kolorystyka: `src/theme.css`. Ruletka: `src/games/roulette/{engine,betting,motion,roulette}.js` oraz `roulette.css`.
+Koło obraca się także bez zakładu. Puste obroty pokazują wynik w historii koła, ale nie zmieniają salda ani statystyk gracza. Postawione żetony są pobierane raz, po zamknięciu zakładów. Po obrocie stół jest czyszczony; powtórzenie poprzednich stawek wymaga kliknięcia. Runda odrzucona przez portfel nie pobiera stawki i nie jest automatycznie ponawiana. Reset i wyjście wyłączają stary zegar; opóźnienie karty w tle nie odtwarza kolejki minionych rund.
+
+Każdy obrót otrzymuje nowy plan ruchu: zmienny kierunek, liczbę obrotów, prędkość, punkt opadania i odbicia kulki. Kulka porusza się niezależnie od koła i kończy w kieszeni zgodnej z wynikiem. `prefers-reduced-motion` wyłącza ruch, zachowując rytm rund. Losowanie i księgowanie są niezależne od animacji, a widoczne saldo oraz pasek wyników aktualizują się po zakończeniu obrotu. RTP pozostaje 99%.
+
+Kod stron gier: `src/game-page.js`, układy: `src/game-page.css`, wspólna kolorystyka: `src/theme.css`. Ruletka: `src/games/roulette/{engine,betting,motion,round-clock,roulette}.js` oraz `roulette.css`. `tests/roulette-clock.test.js` sprawdza granice czasu, cykl 15 sekund, karty w tle, reset, pojedyncze pobranie stawki i brak automatycznego ponawiania zakładów.
 
 ## Struktura i kolejne gry
 
