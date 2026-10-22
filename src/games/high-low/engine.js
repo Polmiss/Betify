@@ -2,9 +2,8 @@ import { MAX_BALANCE } from '../../store.js';
 import { TARGET_RTP, roundPayout } from '../../rtp.js';
 
 export const MIN_BET = 10;
-export const MAX_BET = 5000;
 export const MAX_MULTIPLIER = 1000;
-export const MAX_PAYOUT = 1000000;
+export const MAX_PAYOUT = MAX_BALANCE;
 export const MAX_SKIPS = 52;
 export const ranks = ['A', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K'];
 export const suits = ['♠', '♥', '♦', '♣'];
@@ -65,7 +64,7 @@ export function createHighLow(player, { draw = drawCard, round = roundPayout } =
     if (state.phase !== 'playing' || state.wins === 0) return 'Najpierw traf przynajmniej jeden typ.';
     return settle('cashout', state.bet * state.multiplier);
   }
-  const atLimit = () => Object.values(offers()).some((offer) => offer.multiplier > MAX_MULTIPLIER || Math.ceil(state.bet * offer.multiplier) > MAX_PAYOUT);
+  const atLimit = () => Object.values(offers()).some((offer) => offer.multiplier > MAX_MULTIPLIER || Math.ceil(state.bet * offer.multiplier) > MAX_BALANCE - player.getState().balance);
   return {
     getState() {
       return { ...state, card: { ...state.card }, history: state.history.map((entry) => ({ ...entry, card: { ...entry.card } })),
@@ -73,9 +72,9 @@ export function createHighLow(player, { draw = drawCard, round = roundPayout } =
     },
     start(bet) {
       if (state.phase === 'playing') return 'Najpierw zakończ obecną serię.';
-      if (!Number.isSafeInteger(bet) || bet < MIN_BET || bet > MAX_BET) return 'Wybierz całkowitą stawkę od 10 do 5 000 żetonów.';
+      if (!Number.isSafeInteger(bet) || bet < MIN_BET) return 'Wybierz całkowitą stawkę od 10 żetonów.';
       if (player.getState().balance < bet) return 'Za mało żetonów. Możesz zresetować saldo w nagłówku.';
-      if (player.getState().balance - bet + MAX_PAYOUT > MAX_BALANCE) return 'Za mało miejsca w portfelu na pełną wypłatę. Zresetuj saldo.';
+      if (player.getState().balance - bet + Math.ceil(bet * TARGET_RTP * 13) > MAX_BALANCE) return 'Za mało miejsca w portfelu na pełną wypłatę. Zmniejsz stawkę.';
       if (!player.debit(bet)) return 'Nie udało się pobrać stawki.';
       pending = undefined;
       state = { ...state, phase: 'playing', bet, multiplier: 1, wins: 0, skips: 0, payout: 0, outcome: null,
@@ -87,6 +86,7 @@ export function createHighLow(player, { draw = drawCard, round = roundPayout } =
       if (pending) return 'Najpierw ponów odbiór oczekującej wypłaty.';
       if (!['high', 'low'].includes(direction)) return 'Wybierz wyżej albo niżej.';
       const offer = offers()[direction];
+      if (player.getState().balance + Math.ceil(state.bet * offer.multiplier) > MAX_BALANCE) return 'Za mało miejsca w portfelu na tę wygraną. Odbierz żetony lub wybierz inny kierunek.';
       const previous = state.card.rank;
       const card = nextCard();
       const won = isCorrect(previous, card.rank, direction);

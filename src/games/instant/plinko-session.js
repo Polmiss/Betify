@@ -1,5 +1,5 @@
 import { MAX_BALANCE } from '../../store.js';
-import { MIN_BET, MAX_BET, MAX_PAYOUT, drawInteger } from './engine.js';
+import { MIN_BET, drawInteger } from './engine.js';
 import { PLINKO_ROWS_OPTIONS } from './plinko-physics.js';
 import { plinkoFlight, PLINKO_RELEASE_COUNT } from './plinko-release.js';
 import { roundPayout } from '../../rtp.js';
@@ -15,13 +15,12 @@ export function createPlinkoSession(player, { seed = () => drawInteger(PLINKO_RE
   return {
     drop(bet, { risk = 'low', rows = 12 } = {}) {
       if (closed) return { error: 'Gra jest zamknięta.' };
-      if (!Number.isSafeInteger(bet) || bet < MIN_BET || bet > MAX_BET) return { error: 'Wpisz całkowitą stawkę od 10 do 5 000 żetonów.' };
+      if (!Number.isSafeInteger(bet) || bet < MIN_BET) return { error: 'Wpisz całkowitą stawkę od 10 żetonów.' };
       if (!PLINKO_ROWS_OPTIONS.includes(rows) || !['low', 'medium', 'high'].includes(risk)) return { error: 'Wybierz poprawny kolor i liczbę rzędów.' };
       if (pending.size && [...pending.values()][0].rows !== rows) return { error: 'Poczekaj na kulki przed zmianą liczby rzędów.' };
       player.refresh?.(false);
       if (player.getState().balance < bet) return { error: 'Za mało dostępnych żetonów na kolejną kulkę.' };
       const maxPayout = Math.ceil(bet * Math.max(...plinkoPaytable(risk, rows)));
-      if (maxPayout > MAX_PAYOUT) return { error: 'Zmniejsz stawkę, aby każda pełna wypłata mieściła się w limicie 1 000 000.' };
       if (player.getState().balance - bet + liability() + maxPayout > MAX_BALANCE) return { error: 'Brak miejsca w portfelu na pełne wypłaty wszystkich kulek.' };
       const flight = plinkoFlight(seed(), rows);
       if (!player.debit(bet)) return { error: 'Nie udało się pobrać stawki.' };

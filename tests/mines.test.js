@@ -30,8 +30,8 @@ test('multipliers match the combinatorial probability for every supported mine c
   assert.ok(Math.abs(calculateOdds(3, 22).multiplier - 2277) < 1e-8);
   assert.equal(calculateOdds(24, 1).nextMultiplier, null);
   const capped = calculateOdds(12, 12, 5000);
-  assert.equal(capped.effectiveMultiplier, 200);
-  assert.equal(capped.effectiveNextMultiplier, 200);
+  assert.equal(capped.effectiveMultiplier, MAX_BALANCE / 5000);
+  assert.equal(capped.effectiveNextMultiplier, MAX_BALANCE / 5000);
   assert.equal(capped.availablePayout, MAX_PAYOUT);
 });
 

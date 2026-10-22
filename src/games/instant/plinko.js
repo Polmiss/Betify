@@ -1,7 +1,7 @@
 import { createPlinkoSession } from './plinko-session.js';
 import { addPlinkoBall, plinkoBoard, riskNames } from './plinko-board.js';
 import { samplePlinkoMotion, PLINKO_ROWS_OPTIONS } from './plinko-physics.js';
-import { plinkoPaytable, MIN_BET, MAX_BET } from './engine.js';
+import { plinkoPaytable, MIN_BET } from './engine.js';
 import { showGameHelp } from '../../game-help.js';
 import './instant.css';
 import './plinko.css';
@@ -21,7 +21,7 @@ export function mountPlinko(root, player, { onRound } = {}) {
     <div class="ig-layout"><div class="ig-arena"><div class="ig-stage"></div><div class="ig-message" role="status" aria-live="polite" aria-atomic="true">Klikaj wybrany kolor, aby puszczać kolejne kulki.</div><div class="ig-history" aria-label="Historia kulek"></div></div>
     <aside class="ig-controls" aria-label="Sterowanie grą">
       <div class="ig-stats"><span>Ostatni mnożnik<strong data-stat="multiplier">—</strong></span><span>Ostatnia wypłata<strong data-stat="payout">—</strong></span></div>
-      <div class="ig-setup"><label for="ig-bet">Stawka za kulkę <small>10–5 000</small></label><input id="ig-bet" type="number" value="100" min="10" max="5000" step="1" inputmode="numeric"><div class="ig-chips">${[10, 50, 100, 500].map((value) => `<button data-chip="${value}" aria-pressed="${value === 100}">${value}</button>`).join('')}</div>
+      <div class="ig-setup"><label for="ig-bet">Stawka za kulkę <small>od 10</small></label><input id="ig-bet" type="number" value="100" min="10" step="1" inputmode="numeric"><div class="ig-chips">${[10, 50, 100, 500].map((value) => `<button data-chip="${value}" aria-pressed="${value === 100}">${value}</button>`).join('')}</div>
       <label for="ig-rows">Liczba rzędów</label><select id="ig-rows">${PLINKO_ROWS_OPTIONS.map((rows) => `<option value="${rows}" ${rows === 12 ? 'selected' : ''}>${rows} rzędów</option>`).join('')}</select></div>
       <div class="ig-offer"><div class="ig-flight-count">Kulki w grze <strong data-stat="active">0</strong></div><div>Zarezerwowano: <b data-stat="reserved">0</b></div><div>Dostępne na kolejne: <b data-stat="available">0</b></div></div>
       <div class="ig-plinko-drops" role="group" aria-label="Puść kulkę — wybierz ryzyko">${Object.entries(riskNames).map(([risk, name]) => `<button type="button" data-plinko-risk="${risk}" aria-label="Puść kulkę: ${name.toLowerCase()} ryzyko"><i aria-hidden="true">●</i><strong>${name}</strong><small></small></button>`).join('')}</div>
@@ -30,7 +30,7 @@ export function mountPlinko(root, player, { onRound } = {}) {
   const $ = (selector) => root.querySelector(selector);
   const rows = () => Number($('#ig-rows').value);
   const bet = () => Number($('#ig-bet').value);
-  const validBet = () => Number.isSafeInteger(bet()) && bet() >= MIN_BET && bet() <= MAX_BET;
+  const validBet = () => Number.isSafeInteger(bet()) && bet() >= MIN_BET;
   const board = () => { $('.ig-stage').innerHTML = plinkoBoard(rows()); };
 
   function render() {
@@ -109,7 +109,7 @@ export function mountPlinko(root, player, { onRound } = {}) {
   }
 
   function drop(risk) {
-    if (!validBet()) { $('.ig-error').textContent = 'Wpisz całkowitą stawkę od 10 do 5 000 żetonów.'; return; }
+    if (!validBet()) { $('.ig-error').textContent = 'Wpisz całkowitą stawkę od 10 żetonów.'; return; }
     const releaseDebit = player.deferDebit?.(bet());
     let result;
     try { result = session.drop(bet(), { risk, rows: rows() }); }
@@ -136,7 +136,7 @@ export function mountPlinko(root, player, { onRound } = {}) {
         '<p>Wybierz stawkę za kulkę i 8, 12 albo 16 rzędów. Zielony, żółty i czerwony przycisk puszczają kulki o niskim, średnim i wysokim ryzyku. Tabele mnożników widać pod planszą.</p>',
         '<p>Możesz puszczać dowolną liczbę kulek jednocześnie, o ile masz dostępne żetony na ich stawki. Kulki są rozliczane niezależnie. Rzędy można zmienić po zakończeniu wszystkich lotów.</p>',
         '<p>Losujemy jeden z 32 768 równoprawdopodobnych startów. Stała grawitacja i zderzenia z kołkami, prowadnicami oraz przegrodami wyznaczają tor i końcowe pole. Przy odbiciach kulka traci energię. Tabele dla każdego koloru i liczby rzędów mają RTP 99%; etykiety na planszy są skrócone, dokładny mnożnik jest w opisie pola.</p>',
-        '<p>Stawka jest rezerwowana przy zrzucie. Saldo i historia uwzględniają wynik dopiero po animacji każdej kulki. Wypłata to stawka razy dokładny mnożnik pola i zawiera stawkę. Ułamki zaokrąglamy losowo z zachowaniem średniej. Limit wypłaty: 1 000 000; przed przyjęciem stawki sprawdzamy miejsce na pełne wypłaty wszystkich kulek. Wyjście z gry rozlicza lecące kulki. Własny wariant demonstracyjny Betify.</p>',
+        '<p>Stawka jest rezerwowana przy zrzucie. Saldo i historia uwzględniają wynik dopiero po animacji każdej kulki. Wypłata to stawka razy dokładny mnożnik pola i zawiera stawkę. Ułamki zaokrąglamy losowo z zachowaniem średniej. Nie ma maksymalnej stawki; przed przyjęciem zakładu sprawdzamy miejsce na pełne wypłaty wszystkich kulek. Wyjście z gry rozlicza lecące kulki. Własny wariant demonstracyjny Betify.</p>',
       ]);
     }
   }, { signal: events.signal });

@@ -3,7 +3,6 @@ import { roundPayout, uniformInteger } from '../rtp.js';
 import { BLACKJACK_RETURN, BLACKJACK_WIN_RETURN, blackjackRecommendation } from './blackjack-math.js';
 
 export const MIN_BET = 10;
-export const MAX_BET = 5000;
 const suits = ['♠', '♥', '♦', '♣'];
 const ranks = ['A', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K'];
 
@@ -94,7 +93,7 @@ export function createBlackjack(player, { shoeFactory, drawCard = drawBlackjackC
     },
     start(bet, { deferOpening = false } = {}) {
       if (!['ready', 'finished'].includes(state.phase)) return 'Najpierw dokończ obecną rundę.';
-      if (!Number.isSafeInteger(bet) || bet < MIN_BET || bet > MAX_BET || bet % 2 !== 0) return 'Wybierz parzystą stawkę od 10 do 5 000 żetonów.';
+      if (!Number.isSafeInteger(bet) || bet < MIN_BET || bet % 2 !== 0) return 'Wybierz parzystą stawkę od 10 żetonów.';
       if (player.getState().balance < bet) return 'Za mało żetonów. Zresetuj saldo w portfelu.';
       if (player.getState().balance + bet * 2 > MAX_BALANCE) return 'Saldo jest zbyt blisko limitu portfela na pełną wypłatę z podwojenia. Wybierz mniejszą stawkę.';
       if (shoeFactory) {

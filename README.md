@@ -58,7 +58,7 @@ Bezpośrednie adresy: `game.html#dice`, `#mines`, `#trader`, `#goal`, `#plinko`.
 - **Goal:** własny demonstracyjny wariant z pięcioma miejscami strzału. Bramkarz losuje jedno z nich z szansą 20%; zgodność oznacza obronę, a pozostałe miejsca gola. Po trafieniu można odebrać żetony lub strzelać dalej. Mnożnik po `n` golach to `0.99 / 0.8^n`. Obrona traci serię, a 10 goli kończy ją automatycznie.
 - **Plinko:** trzy kolorowe przyciski zrzutu (niski, średni i wysoki poziom ryzyka), 8/12/16 rzędów oraz trzy widoczne tabele mnożników. Stały krok fizyki 240 Hz: grawitacja, okrągłe kołki, utrata energii, tarcie, obrót kulki, prowadnice i przegrody. Losowy jest tylko start; pole końcowe wynika z symulacji, bez kierowania do wybranego mnożnika. Tabele są wariantem demonstracyjnym Betify.
 
-Stawki: 10–5 000 całkowitych żetonów. Wypłata zawiera stawkę i jest zaokrąglana losowo z zachowaniem średniej. Maksymalna wypłata: 1 000 000; maksymalny mnożnik serii: 1 000×. Obowiązuje też limit salda portfela. Dice i Trader rozliczają wynik przed animacją; Plinko rozlicza każdą kulkę po jej locie. Wyjście z aktywnego Mines/Goal automatycznie odbiera żetony po trafieniach albo zwraca stawkę przed pierwszym ruchem. Reset przerywa animację i ustawia dokładnie 10 000. Awaryjne zamknięcie przeglądarki może uniemożliwić rozliczenie serii. Nieudane uznanie portfela można ponowić bez ponownego pobierania stawki lub losowania wyniku.
+Stawki: od 10 całkowitych żetonów. Wypłata zawiera stawkę i jest zaokrąglana losowo z zachowaniem średniej. Brak maksymalnej stawki; maksymalny mnożnik serii: 1 000×. Obowiązuje też limit salda portfela. Dice i Trader rozliczają wynik przed animacją; Plinko rozlicza każdą kulkę po jej locie. Wyjście z aktywnego Mines/Goal automatycznie odbiera żetony po trafieniach albo zwraca stawkę przed pierwszym ruchem. Reset przerywa animację i ustawia dokładnie 10 000. Awaryjne zamknięcie przeglądarki może uniemożliwić rozliczenie serii. Nieudane uznanie portfela można ponowić bez ponownego pobierania stawki lub losowania wyniku.
 
 Losowanie używa Web Crypto z odrzucaniem niepełnego przedziału modulo. Kod: `src/games/instant/{engine,instant}.js` i `instant.css`. Testy: `tests/instant.test.js`, w tym granice Dice, kombinatoryka Mines, wszystkie kombinacje strzału i obrony, pola Plinko, limity, ponawianie wypłaty i symulacja 500 mieszanych rund.
 
@@ -70,7 +70,7 @@ Otwórz `game.html#mines`. Podstawowa mechanika odpowiada powszechnemu wariantow
 - Miny i stawka są blokowane podczas rundy. Każde pole może zostać odkryte tylko raz. Losowe pole jest losowane spośród wszystkich zakrytych pól i również może zawierać minę.
 - Po `k` diamentach przy `m` minach mnożnik to `0.99 * C(25,k) / C(25-m,k)`. Wynika z odwrotności prawdopodobieństwa przetrwania `k` wyborów i jednorazowego współczynnika 0,99. Przed pierwszym odkryciem wyświetlane jest 1×, ale odbiór nie jest dostępny.
 - Szansa następnego diamentu: `(25-m-k)/(25-k)`. Ekran pokazuje tę szansę i następny mnożnik przed wyborem.
-- Stawki 10–5 000, wypłata zaokrąglana losowo do całych żetonów z zachowaniem średniej, maksymalna wypłata 1 000 000 oraz limit salda portfela. Automatyczny odbiór przed nieobsługiwanym krokiem oraz losowe zaokrąglenia zachowują teoretyczne 99%.
+- Stawki od 10, wypłata zaokrąglana losowo do całych żetonów z zachowaniem średniej, bez maksymalnej stawki; pełna wypłata musi mieścić się w portfelu. Automatyczny odbiór przed nieobsługiwanym krokiem oraz losowe zaokrąglenia zachowują teoretyczne 99%.
 - Odkrycie wszystkich diamentów albo krok poprzedzający przekroczenie limitu automatycznie rozlicza pełną bieżącą wypłatę. Po jej zakończeniu widać cały układ, z wyróżnieniem wybranych pól i trafionej miny.
 - Zwykłe wyjście odbiera bieżącą wygraną; przed pierwszym odkryciem zwraca stawkę. Reset kończy rundę i ustawia dokładnie 10 000. Awaryjne zamknięcie może uniemożliwić rozliczenie. Brak doładowań.
 
@@ -85,7 +85,7 @@ Otwórz `game.html#high-low`. Wariant inspirowany [oficjalnymi zasadami Stake Hi
 - Dla rang 2–Q wybiera się „wyżej lub taka sama” / „niżej lub taka sama”. Przy A: wyżej (12/13) albo taka sama (1/13); przy K: taka sama (1/13) albo niżej (12/13).
 - Po trafieniu można odebrać żetony albo kontynuować. Błąd traci całą stawkę i nieodebraną wygraną. Saldo pobierane jest raz na początku serii; kolejne typy nie pobierają dodatkowych stawek.
 - Mnożnik Betify: `0.99 / (p1 * p2 * ... * pn)`. Współczynnik 0,99 stosowany jest raz, przy pierwszym trafieniu. Wyświetlane szanse i następny łączny mnożnik odpowiadają dokładnie temu obliczeniu. Wypłata zawiera stawkę i jest zaokrąglana losowo z zachowaniem średniej do całkowitych żetonów.
-- Stawka 10–5 000, maksymalny mnożnik 1 000×, maksymalna wypłata 1 000 000 żetonów. Przed następnym typem, który wymagałby obcięcia któregokolwiek mnożnika, odbieramy pełną bieżącą wypłatę. Nie redukujemy przyjętej wypłaty do limitu portfela.
+- Stawka od 10, maksymalny mnożnik 1 000×, bez maksymalnej stawki. Przed następnym typem, który wymagałby obcięcia któregokolwiek mnożnika, odbieramy pełną bieżącą wypłatę. Nie redukujemy przyjętej wypłaty do limitu portfela.
 - Pominięcie zmienia kartę bez zmiany mnożnika i bez pobierania żetonów. Limit 52 pominięć w aktywnej rundzie; przed startem bez limitu.
 - Przy zwykłym wyjściu z gry odbieramy żetony po trafieniach; przed pierwszym typem zwracamy stawkę. Awaryjne zamknięcie może uniemożliwić rozliczenie. Reset przerywa animacje, rozlicza serię i ustawia saldo dokładnie na 10 000.
 
@@ -93,7 +93,7 @@ Kod: `src/games/high-low/{engine,high-low}.js` oraz `high-low.css`. Testy: `test
 
 ## Blackjack
 
-Kliknij Blackjack w lobby lub otwórz `#game/blackjack`. Wybierz parzystą stawkę od 10 do 5 000 żetonów. As ma wartość 1 lub 11, figury 10. Blackjack na dwóch kartach daje zysk 3:2, zwykła wygrana według skalibrowanego mnożnika z sekcji RTP, remis zwraca stawkę. Parzyste stawki pozwalają wypłacać 3:2 w całkowitych żetonach.
+Kliknij Blackjack w lobby lub otwórz `#game/blackjack`. Wybierz parzystą stawkę od 10 żetonów. As ma wartość 1 lub 11, figury 10. Blackjack na dwóch kartach daje zysk 3:2, zwykła wygrana według skalibrowanego mnożnika z sekcji RTP, remis zwraca stawkę. Parzyste stawki pozwalają wypłacać 3:2 w całkowitych żetonach.
 
 Gra losuje niezależne karty ze zwracaniem przez Web Crypto. Krupier stoi na każdym 17, również miękkim. Można podwoić pierwsze dwie karty przy wystarczającym saldzie: dodatkowa stawka, dokładnie jedna karta i automatyczny pas. Bez podziału par, ubezpieczenia i poddania.
 

@@ -50,7 +50,7 @@ test('only funds restrict new balls; rows stay fixed until all have landed', () 
 test('invalid options and random source failure never debit the wallet', () => {
   const player = wallet();
   const game = createPlinkoSession(player, { seed: () => { throw new Error('random unavailable'); } });
-  for (const bet of [0, 9, 5001, NaN, Infinity, 10.5]) assert.ok(game.drop(bet).error);
+  for (const bet of [0, 9, Number.MAX_SAFE_INTEGER + 1, NaN, Infinity, 10.5]) assert.ok(game.drop(bet).error);
   assert.ok(game.drop(100, { rows: 9 }).error);
   assert.ok(game.drop(100, { risk: 'other' }).error);
   assert.throws(() => game.drop(100));

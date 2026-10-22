@@ -14,7 +14,7 @@ import { simulatePlinko } from '../src/games/instant/plinko-physics.js';
 import { createPlinkoSession } from '../src/games/instant/plinko-session.js';
 import { createBlackjackAnalysis, BLACKJACK_WIN_RETURN } from '../src/games/blackjack-math.js';
 import { createBlackjack } from '../src/games/blackjack-engine.js';
-import { createPlayerStore } from '../src/store.js';
+import { createPlayerStore, MAX_BALANCE } from '../src/store.js';
 
 const near = (actual, expected = TARGET_RTP, tolerance = 1e-9) => assert.ok(Math.abs(actual - expected) < tolerance, `${actual} != ${expected}`);
 // Exact expectation of the production 32-bit rounding draw (no Monte Carlo).
@@ -66,7 +66,7 @@ test('Mines retains 99% for every mine count and every reachable cashout depth',
     for (let picks = 1; picks <= 25 - mines; picks++) {
       probability *= (25 - mines - picks + 1) / (26 - picks);
       const odds = calculateOdds(mines, picks, bet);
-      if (Math.ceil(bet * odds.multiplier) > 1000000) break;
+      if (Math.ceil(bet * odds.multiplier) > MAX_BALANCE) break;
       near(probability * roundedExpectation(bet * odds.multiplier) / bet);
     }
     const player = wallet();
@@ -79,7 +79,7 @@ test('Mines retains 99% for every mine count and every reachable cashout depth',
     }
     const state = game.getState();
     near(probabilityToFinish * state.multiplier);
-    assert.ok(state.payout < 1000000);
+    assert.ok(player.getState().balance <= MAX_BALANCE);
   }
 });
 

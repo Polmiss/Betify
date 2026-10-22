@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { BETS, WHEEL, RED, colorOf, calculateResult, stakeTotal, drawPocket, settleRound, ROUND_LIMIT } from '../src/games/roulette/engine.js';
+import { BETS, WHEEL, RED, colorOf, calculateResult, stakeTotal, drawPocket, settleRound } from '../src/games/roulette/engine.js';
 import { createPlayerStore, MAX_BALANCE, STORAGE_KEY } from '../src/store.js';
 
 function playerWith(balance = 10000) {
@@ -69,13 +69,14 @@ test('losing rounds debit the stake, and invalid rounds never mutate balance', (
   const player = playerWith(100);
   assert.equal(settleRound(player, { red: 50 }, 0).net, -50);
   assert.equal(player.getState().balance, 50);
-  for (const bets of [{ red: 60 }, {}, { missing: 10 }, { red: -1 }, { red: 1.2 }, { red: Infinity }, { red: ROUND_LIMIT + 1 }]) {
+  for (const bets of [{ red: 60 }, {}, { missing: 10 }, { red: -1 }, { red: 1.2 }, { red: Infinity }, { red: Number.MAX_SAFE_INTEGER + 1 }]) {
     assert.throws(() => settleRound(player, bets, 0));
     assert.equal(player.getState().balance, 50);
   }
   assert.throws(() => calculateResult({ red: 10 }, 37));
   assert.throws(() => calculateResult({ red: 10 }, -1));
-  assert.throws(() => stakeTotal({ red: 60000, black: 60000 }));
+  assert.equal(stakeTotal({ red: 60000, black: 60000 }), 120000);
+  assert.throws(() => stakeTotal({ red: Number.MAX_SAFE_INTEGER, black: 1 }));
 });
 
 test('near-limit wallet rejects a round even if that particular outcome would lose', () => {

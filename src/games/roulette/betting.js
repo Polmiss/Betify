@@ -1,4 +1,4 @@
-import { BETS, ROUND_LIMIT } from './engine.js';
+import { BETS } from './engine.js';
 
 export const CHIPS = Object.freeze([10, 50, 100, 500, 1000, 5000, 10000]);
 export const chipLabel = (amount) => amount >= 1000 ? `${amount / 1000}k` : String(amount);
@@ -14,7 +14,7 @@ export function createBettingRack() {
     const candidate = chips.map(({ id, amount }) => {
       if (!Object.hasOwn(BETS, id) || !denominations.includes(amount)) throw new Error('Nieprawidłowy żeton lub pole.');
       total += amount;
-      if (total > ROUND_LIMIT) throw new Error('Limit rundy to 100 000 żetonów.');
+      if (!Number.isSafeInteger(total)) throw new Error('Nieprawidłowa łączna stawka.');
       if (total > balance) throw new Error('Za mało żetonów na ten zakład.');
       return { id, amount };
     });
@@ -23,7 +23,7 @@ export function createBettingRack() {
   function append(id, amount, balance) {
     if (!Object.hasOwn(BETS, id) || !denominations.includes(amount)) throw new Error('Nieprawidłowy żeton lub pole.');
     const total = placements.reduce((sum, chip) => sum + chip.amount, 0) + amount;
-    if (total > ROUND_LIMIT) throw new Error('Limit rundy to 100 000 żetonów.');
+    if (!Number.isSafeInteger(total)) throw new Error('Nieprawidłowa łączna stawka.');
     if (total > balance) throw new Error('Za mało żetonów na ten zakład.');
     placements.push({ id, amount });
   }
@@ -37,7 +37,6 @@ export function createBettingRack() {
     },
     allIn(id, balance) {
       if (!Object.hasOwn(BETS, id) || !Number.isSafeInteger(balance) || balance <= 0) throw new Error('Brak żetonów do postawienia.');
-      if (balance > ROUND_LIMIT) throw new Error('All in przekracza limit rundy: 100 000 żetonów.');
       let remaining = balance - placements.reduce((sum, chip) => sum + chip.amount, 0);
       if (remaining <= 0) throw new Error('Całe saldo jest już na stole.');
       const amount = remaining;

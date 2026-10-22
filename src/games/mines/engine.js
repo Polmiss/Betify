@@ -3,8 +3,7 @@ import { TARGET_RTP, roundPayout } from '../../rtp.js';
 
 export const TILE_COUNT = 25;
 export const MIN_BET = 10;
-export const MAX_BET = 5000;
-export const MAX_PAYOUT = 1000000;
+export const MAX_PAYOUT = MAX_BALANCE;
 
 export function randomIndex(limit, random = globalThis.crypto) {
   if (!Number.isInteger(limit) || limit < 1 || limit > TILE_COUNT) throw new Error('Nieprawidłowy zakres losowania.');
@@ -70,7 +69,7 @@ export function createMines(player, { boardFactory = createBoard, pick = randomI
     if (mines.has(index)) { state = { ...state, phase: 'finished', hit: index, outcome: 'mine', payout: 0 }; return null; }
     state.opened.push(index);
     if (state.opened.length === TILE_COUNT - state.mineCount) return settle('cleared', state.bet * odds().multiplier);
-    if (Math.ceil(state.bet * odds().nextMultiplier) > MAX_PAYOUT) return settle('limit', state.bet * odds().multiplier);
+    if (Math.ceil(state.bet * odds().nextMultiplier) > MAX_BALANCE - player.getState().balance) return settle('limit', state.bet * odds().multiplier);
     return null;
   }
   return {
@@ -91,10 +90,10 @@ export function createMines(player, { boardFactory = createBoard, pick = randomI
     },
     start(bet, mineCount = state.mineCount) {
       if (state.phase === 'playing') return 'Najpierw zakończ obecną rundę.';
-      if (!Number.isSafeInteger(bet) || bet < MIN_BET || bet > MAX_BET) return 'Wybierz całkowitą stawkę od 10 do 5 000 żetonów.';
+      if (!Number.isSafeInteger(bet) || bet < MIN_BET) return 'Wybierz całkowitą stawkę od 10 żetonów.';
       if (!validMines(mineCount)) return 'Wybierz od 1 do 24 min.';
       if (player.getState().balance < bet) return 'Za mało żetonów. Możesz zresetować saldo w nagłówku.';
-      if (player.getState().balance - bet + MAX_PAYOUT > MAX_BALANCE) return 'Za mało miejsca w portfelu na pełną wypłatę. Zresetuj saldo.';
+      if (player.getState().balance - bet + Math.ceil(bet * calculateOdds(mineCount, 1).multiplier) > MAX_BALANCE) return 'Za mało miejsca w portfelu na pełną wypłatę. Zmniejsz stawkę.';
       const layout = boardFactory(mineCount);
       if (!Array.isArray(layout) || layout.length !== mineCount || new Set(layout).size !== mineCount || layout.some((i) => !Number.isInteger(i) || i < 0 || i >= TILE_COUNT)) throw new Error('Nieprawidłowy układ min.');
       if (!player.debit(bet)) return 'Nie udało się pobrać stawki.';

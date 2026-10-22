@@ -3,7 +3,6 @@ import { TARGET_RTP, roundPayout } from '../../rtp.js';
 
 export const WHEEL = Object.freeze([0, 32, 15, 19, 4, 21, 2, 25, 17, 34, 6, 27, 13, 36, 11, 30, 8, 23, 10, 5, 24, 16, 33, 1, 20, 14, 31, 9, 22, 18, 29, 7, 28, 12, 35, 3, 26]);
 export const RED = Object.freeze([1, 3, 5, 7, 9, 12, 14, 16, 18, 19, 21, 23, 25, 27, 30, 32, 34, 36]);
-export const ROUND_LIMIT = 100000;
 export const colorOf = (n) => n === 0 ? 'green' : RED.includes(n) ? 'red' : 'black';
 const numbers = Array.from({ length: 36 }, (_, i) => i + 1);
 const definition = (id, label, pockets) => Object.freeze({ id, label, pockets: Object.freeze(pockets), multiplier: TARGET_RTP * 37 / pockets.length });
@@ -25,7 +24,7 @@ export function stakeTotal(bets) {
     if (!Object.hasOwn(BETS, id) || !Number.isSafeInteger(amount) || amount <= 0) throw new Error('Nieprawidłowy zakład.');
     total += amount;
   }
-  if (total > ROUND_LIMIT) throw new Error('Limit rundy to 100 000 żetonów.');
+  if (!Number.isSafeInteger(total)) throw new Error('Nieprawidłowa łączna stawka.');
   return total;
 }
 

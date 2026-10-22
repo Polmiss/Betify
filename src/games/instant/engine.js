@@ -6,8 +6,7 @@ import { PLINKO_TABLES, plinkoPaytable } from './plinko-tables.js';
 export { PLINKO_ROWS, PLINKO_ROWS_OPTIONS, plinkoPaytable };
 
 export const MIN_BET = 10;
-export const MAX_BET = 5000;
-export const MAX_PAYOUT = 1000000;
+export const MAX_PAYOUT = MAX_BALANCE;
 export const MAX_MULTIPLIER = 1000;
 export const GOAL_SHOTS = 10;
 export const PLINKO_PAYTABLES = PLINKO_TABLES[PLINKO_ROWS];
@@ -41,7 +40,9 @@ export function createInstantGame(id, player, { randomInt = drawInteger, round =
   let bombs = [];
   let pending;
   let closed = false;
-  const limit = (bet) => Math.min(MAX_MULTIPLIER, MAX_PAYOUT / bet);
+  const limit = (bet) => Math.min(MAX_MULTIPLIER, (MAX_BALANCE - player.getState().balance) / bet);
+  const hasRoom = (bet, multiplier) => player.getState().balance - bet + Math.ceil(bet * multiplier) <= MAX_BALANCE;
+  const walletError = 'Za mało miejsca w portfelu na pełną wypłatę. Zmniejsz stawkę.';
   function random(size) {
     const value = randomInt(size);
     if (!Number.isInteger(value) || value < 0 || value >= size) throw new Error('Nieprawidłowy wynik losowania.');
@@ -50,10 +51,9 @@ export function createInstantGame(id, player, { randomInt = drawInteger, round =
   function validate(bet) {
     if (closed) return 'Gra jest zamknięta.';
     if (['playing', 'settling'].includes(state.phase)) return 'Najpierw zakończ obecną rundę.';
-    if (!Number.isSafeInteger(bet) || bet < MIN_BET || bet > MAX_BET) return 'Wpisz całkowitą stawkę od 10 do 5 000 żetonów.';
+    if (!Number.isSafeInteger(bet) || bet < MIN_BET) return 'Wpisz całkowitą stawkę od 10 żetonów.';
     player.refresh?.(false);
     if (player.getState().balance < bet) return 'Za mało żetonów. Możesz zresetować saldo w nagłówku.';
-    if (player.getState().balance - bet + MAX_PAYOUT > MAX_BALANCE) return 'Za mało miejsca na pełną wypłatę w portfelu. Zresetuj saldo.';
     return null;
   }
   function begin(bet, data = {}) {
@@ -93,6 +93,7 @@ export function createInstantGame(id, player, { randomInt = drawInteger, round =
       const { threshold = 50, direction = 'under' } = options;
       const offer = diceOffer(threshold, direction);
       if (!offer) return 'Wybierz próg 2–98 i kierunek zakładu.';
+      if (!hasRoom(bet, offer.multiplier)) return walletError;
       const roll = random(10000);
       const won = direction === 'under' ? roll < threshold * 100 : roll >= threshold * 100;
       const payout = won ? round(bet * offer.multiplier) : 0;
@@ -102,6 +103,7 @@ export function createInstantGame(id, player, { randomInt = drawInteger, round =
     if (id === 'trader') {
       const { direction = 'up' } = options;
       if (!['up', 'down'].includes(direction)) return 'Wybierz wzrost albo spadek.';
+      if (!hasRoom(bet, TARGET_RTP / .5)) return walletError;
       const previous = state.result?.prices?.at(-1) || 1000;
       const movement = random(2) === 1 ? 'up' : 'down';
       const change = 10 + random(41);
@@ -116,7 +118,7 @@ export function createInstantGame(id, player, { randomInt = drawInteger, round =
       const { risk = 'low', rows = PLINKO_ROWS } = options;
       if (!Object.hasOwn(PLINKO_PAYTABLES, risk)) return 'Wybierz niskie, średnie albo wysokie ryzyko.';
       if (!PLINKO_ROWS_OPTIONS.includes(rows)) return 'Wybierz 8, 12 albo 16 rzędów.';
-      if (Math.ceil(bet * Math.max(...plinkoPaytable(risk, rows))) > MAX_PAYOUT) return 'Zmniejsz stawkę, aby każda pełna wypłata mieściła się w limicie.';
+      if (!hasRoom(bet, Math.max(...plinkoPaytable(risk, rows)))) return walletError;
       const flight = plinkoFlight(random(PLINKO_RELEASE_COUNT), rows);
       const { slot, landingX } = flight;
       const multiplier = plinkoPaytable(risk, rows)[slot];
@@ -127,12 +129,14 @@ export function createInstantGame(id, player, { randomInt = drawInteger, round =
     if (id === 'mines') {
       const { mines = 3 } = options;
       if (!minesOffer(mines, 0)) return 'Wybierz od 1 do 24 min.';
+      if (!hasRoom(bet, minesOffer(mines, 1).multiplier)) return walletError;
       const board = Array.from({ length: 25 }, (_, index) => index);
       for (let i = 24; i > 0; i--) { const j = random(i + 1); [board[i], board[j]] = [board[j], board[i]]; }
       const debitError = begin(bet, { mines, revealed: [], wins: 0 });
       if (!debitError) bombs = board.slice(0, mines);
       return debitError;
     }
+    if (!hasRoom(bet, goalOffer(0).nextMultiplier)) return walletError;
     return begin(bet, { wins: 0, shots: [] });
   }
   function reveal(index) {

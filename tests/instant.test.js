@@ -35,7 +35,7 @@ for (const id of ids) {
   test(`${id}: bad stakes and insufficient funds never debit`, () => {
     const player = wallet();
     const game = createInstantGame(id, player);
-    for (const bet of [0, -1, 9, 5001, 20.5, Infinity, NaN, '100']) {
+    for (const bet of [0, -1, 9, Number.MAX_SAFE_INTEGER + 1, 20.5, Infinity, NaN, '100']) {
       assert.ok(game.play(bet));
       assert.equal(player.getState().balance, 10000);
     }

@@ -27,15 +27,16 @@ test('repeat restores exact chip stacks, and an unaffordable repeat changes noth
   assert.deepEqual(rack.stack('number-0'), [50, 10000]);
 });
 
-test('5k and 10k chips are accepted, with bank and table limits enforced', () => {
+test('5k and 10k chips can exceed the former round limit, with funds still enforced', () => {
   assert.ok(CHIPS.includes(5000) && CHIPS.includes(10000));
   const rack = createBettingRack();
   assert.throws(() => rack.add('red', 10000, 5000));
   assert.throws(() => rack.add('red', 123, 10000));
   assert.throws(() => rack.add('invalid', 10, 10000));
   for (let i = 0; i < 10; i++) rack.add('red', 10000, 200000);
-  assert.throws(() => rack.add('red', 10, 200000));
-  assert.deepEqual(rack.totals(), { red: 100000 });
+  rack.add('red', 10, 200000);
+  assert.deepEqual(rack.totals(), { red: 100010 });
+  assert.throws(() => rack.add('red', 10000, 100010));
 });
 
 test('all-in adds only the uncommitted balance and preserves exact denominations for repeat', () => {
@@ -54,16 +55,16 @@ test('all-in adds only the uncommitted balance and preserves exact denominations
   assert.deepEqual(rack.stack('black'), [1]);
 });
 
-test('all-in never partially changes the table when balance, field or round limit is invalid', () => {
+test('all-in exceeds the former round limit and invalid inputs never change the table', () => {
   const rack = createBettingRack();
   rack.add('red', 100, 200000);
   const saved = rack.snapshot();
-  for (const [id, balance] of [['black', 100001], ['bad', 10000], ['black', 0], ['black', 100.5]]) {
+  for (const [id, balance] of [['bad', 10000], ['black', 0], ['black', 100.5]]) {
     assert.throws(() => rack.allIn(id, balance));
     assert.deepEqual(rack.snapshot(), saved);
   }
-  assert.equal(rack.allIn('black', 100000), 99900);
-  assert.deepEqual(rack.totals(), { red: 100, black: 99900 });
+  assert.equal(rack.allIn('black', 200001), 199901);
+  assert.deepEqual(rack.totals(), { red: 100, black: 199901 });
 });
 
 test('variable ball trajectories finish inside the correct moving wheel pocket in either direction', () => {
